@@ -6,6 +6,8 @@ SetConfigFlags(configFlags)
 InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "")
 SetTargetFPS(60)
 
+var showBox = false
+
 while !WindowShouldClose() && !KEY_Q.isPressed {
     BeginDrawing()
     ClearBackground(COLOR_BLACK)
@@ -17,6 +19,12 @@ while !WindowShouldClose() && !KEY_Q.isPressed {
     let y = (CONTENT_HEIGHT / 2) - (fontSize / 2)
 
     DrawText(text, x, y, fontSize, COLOR_YELLOW)
+    
+    let buttonClicked = GuiButton(Rectangle(x: 5, y: 5, width: 160, height: 40), "Click Me!")
+    
+    if buttonClicked != 0 {
+        print("Button was clicked!")
+    }
     
     EndDrawing()
 }

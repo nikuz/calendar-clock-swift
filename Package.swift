@@ -2,9 +2,9 @@
 import PackageDescription
 
 #if os(macOS)
-let libPath = "libs/macos"
+let rayLibPath = "libs/macos"
 #else
-let libPath = "libs/linux-arm64"
+let rayLibPath = "libs/linux-arm64"
 #endif
 
 let package = Package(
@@ -14,11 +14,9 @@ let package = Package(
     ],
     targets: [
         // The C module that wraps raylib
-        .systemLibrary(
+        .target(
             name: "CRayLib",
-            path: "CRayLib",
-            pkgConfig: nil,
-            providers: nil
+            path: "CRayLib"
         ),
         // Your Swift executable
         .executableTarget(
@@ -26,7 +24,7 @@ let package = Package(
             dependencies: ["CRayLib"],
             path: "CalendarClock",
             linkerSettings: [
-                .unsafeFlags(["-L\(libPath)", "-lraylib"]),
+                .unsafeFlags(["-L\(rayLibPath)", "-lraylib"]),
                 
                 // macOS frameworks raylib needs:
                 .linkedFramework("OpenGL",      .when(platforms: [.macOS])),
