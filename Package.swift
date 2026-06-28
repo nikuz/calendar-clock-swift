@@ -33,7 +33,10 @@ let package = Package(
                 .linkedFramework("IOKit",    .when(platforms: [.macOS])),
                 .linkedFramework("CoreVideo",.when(platforms: [.macOS])),
                 // Linux/Pi system libs:
-                .linkedLibrary("GL",    .when(platforms: [.linux])),
+                .linkedLibrary("drm",    .when(platforms: [.linux])),
+                .linkedLibrary("gbm",    .when(platforms: [.linux])),
+                .linkedLibrary("GLESv2",    .when(platforms: [.linux])),
+                .linkedLibrary("EGL",    .when(platforms: [.linux])),
                 .linkedLibrary("m",     .when(platforms: [.linux])),
                 .linkedLibrary("pthread",.when(platforms: [.linux])),
                 .linkedLibrary("dl",    .when(platforms: [.linux])),
