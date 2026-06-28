@@ -27,20 +27,22 @@ let package = Package(
             path: "CalendarClock",
             linkerSettings: [
                 .unsafeFlags(["-L\(libPath)", "-lraylib"]),
+                
                 // macOS frameworks raylib needs:
-                .linkedFramework("OpenGL",   .when(platforms: [.macOS])),
-                .linkedFramework("Cocoa",    .when(platforms: [.macOS])),
-                .linkedFramework("IOKit",    .when(platforms: [.macOS])),
-                .linkedFramework("CoreVideo",.when(platforms: [.macOS])),
+                .linkedFramework("OpenGL",      .when(platforms: [.macOS])),
+                .linkedFramework("Cocoa",       .when(platforms: [.macOS])),
+                .linkedFramework("IOKit",       .when(platforms: [.macOS])),
+                .linkedFramework("CoreVideo",   .when(platforms: [.macOS])),
+                
                 // Linux/Pi system libs:
-                .linkedLibrary("drm",    .when(platforms: [.linux])),
-                .linkedLibrary("gbm",    .when(platforms: [.linux])),
-                .linkedLibrary("GLESv2",    .when(platforms: [.linux])),
-                .linkedLibrary("EGL",    .when(platforms: [.linux])),
-                .linkedLibrary("m",     .when(platforms: [.linux])),
-                .linkedLibrary("pthread",.when(platforms: [.linux])),
-                .linkedLibrary("dl",    .when(platforms: [.linux])),
-                .linkedLibrary("rt",    .when(platforms: [.linux])),
+                .linkedLibrary("drm",           .when(platforms: [.linux])),
+                .linkedLibrary("gbm",           .when(platforms: [.linux])),
+                .linkedLibrary("GLESv2",        .when(platforms: [.linux])),
+                .linkedLibrary("EGL",           .when(platforms: [.linux])),
+                .linkedLibrary("m",             .when(platforms: [.linux])),
+                .linkedLibrary("pthread",       .when(platforms: [.linux])),
+                .linkedLibrary("dl",            .when(platforms: [.linux])),
+                .linkedLibrary("rt",            .when(platforms: [.linux])),
             ]
         ),
     ]
