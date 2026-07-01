@@ -1,1 +1,4 @@
 .build
+.vscode
+config/calendar-gcloud-service-account.json
+config/calendar-ids.json

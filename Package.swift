@@ -12,6 +12,9 @@ let package = Package(
     platforms: [
         .macOS("26.0")
     ],
+    dependencies: [
+        .package(url: "https://github.com/rosecoder/google-cloud-auth-swift.git", from: "1.0.0")
+    ],
     targets: [
         // The C module that wraps raylib
         .target(
@@ -21,7 +24,10 @@ let package = Package(
         // Your Swift executable
         .executableTarget(
             name: "CalendarClock",
-            dependencies: ["CRayLib"],
+            dependencies: [
+                "CRayLib",
+                .product(name: "GoogleCloudAuth", package: "google-cloud-auth-swift"),
+            ],
             path: "CalendarClock",
             linkerSettings: [
                 .unsafeFlags(["-L\(rayLibPath)", "-lraylib"]),

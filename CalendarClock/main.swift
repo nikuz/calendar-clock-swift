@@ -6,6 +6,13 @@ SetConfigFlags(configFlags)
 InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "")
 SetTargetFPS(60)
 
+let calendarProvider = try GoogleCalendarProvider()
+let events = try await calendarProvider.fetchEvents()
+
+for event in events {
+    print(event.summary ?? "(untitled)", event.start.date ?? "unknown date")
+}
+
 var showBox = false
 
 while !WindowShouldClose() && !KEY_Q.isPressed {
