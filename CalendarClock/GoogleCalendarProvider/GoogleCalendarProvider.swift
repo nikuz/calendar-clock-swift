@@ -1,53 +1,123 @@
 import Foundation
-import GoogleCloudAuth
-import NIO
+import Security
 
-private let serviceAccountFilePath = "config/calendar-gcloud-service-account.json";
-private let calendarsFilePath = "config/calendar-ids.json";
+private let serviceAccountFilePath = "config/calendar-gcloud-service-account.json"
+private let calendarsFilePath = "config/calendar-ids.json"
 
 private enum GoogleCalendarProviderError: Error {
-    case credentialsFileNotFound
+    case configFileNotFound
+    case configFileCantRead
     case calendarsFileNotFound
+    case calendarInvalidResponse
 }
 
 actor GoogleCalendarProvider {
-    private let authorization: Authorization
-    private let eventLoopGroup: EventLoopGroup
+    private let headers: JWTHeaders
+    private let serviceAccountConfig: ServiceAccountConfig
     private let calendarIDs: [String]
+    private var accessToken: AccessToken?
 
     init() throws {
-        let serviceAccountUrl = URL(fileURLWithPath: serviceAccountFilePath)
-        guard FileManager.default.fileExists(atPath: serviceAccountUrl.path) else {
-            throw GoogleCalendarProviderError.credentialsFileNotFound
+        let serviceAccountFileUrl = URL(fileURLWithPath: serviceAccountFilePath)
+        guard FileManager.default.fileExists(atPath: serviceAccountFileUrl.path) else {
+            throw GoogleCalendarProviderError.configFileNotFound
         }
 
-        let provider = try ServiceAccountProvider(credentialsURL: serviceAccountUrl)
-        let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        let serviceAccountFileContent: String
+        do {
+            serviceAccountFileContent = try String(contentsOf: serviceAccountFileUrl, encoding: .utf8)
+        } catch {
+            throw GoogleCalendarProviderError.configFileCantRead
+        }
+        let serviceAccountJsonData = serviceAccountFileContent.data(using: .utf8)!
 
-        self.authorization = Authorization(
-            scopes: [Scope("https://www.googleapis.com/auth/calendar.readonly")],
-            provider: provider,
-            eventLoopGroup: eventLoopGroup
-        )
-        self.eventLoopGroup = eventLoopGroup
+        let serviceAccountConfigDecoder = JSONDecoder()
+        serviceAccountConfigDecoder.keyDecodingStrategy = .convertFromSnakeCase
+        self.serviceAccountConfig = try serviceAccountConfigDecoder.decode(ServiceAccountConfig.self, from: serviceAccountJsonData)
+
+        self.headers = JWTHeaders()
 
         let calendarsUrl = URL(fileURLWithPath: calendarsFilePath)
         guard FileManager.default.fileExists(atPath: calendarsUrl.path) else {
-            throw GoogleCalendarProviderError.credentialsFileNotFound
+            throw GoogleCalendarProviderError.calendarsFileNotFound
         }
         let jsonData = try Data(contentsOf: calendarsUrl)
         self.calendarIDs = try JSONDecoder().decode([String].self, from: jsonData)
     }
 
-    enum GoogleCalendarProviderError: Error {
-        case credentialsFileNotFound
-        case invalidResponse
+    func getAccessToken() async throws -> AccessToken? {
+        let now = Int(Date().timeIntervalSince1970)
+
+        // return self.token if it is present and still valid
+        if self.accessToken != nil,
+            let accessToken = self.accessToken,
+            accessToken.expiresAt > now + 60 * 5  // expires in more than 5 minutes
+        {
+            return self.accessToken
+        }
+
+        let payload = JWTPayload(
+            iss: self.serviceAccountConfig.clientEmail,
+            aud: self.serviceAccountConfig.tokenUri,
+            scope: "https://www.googleapis.com/auth/calendar.readonly",
+            exp: now + 3600, // valid for one hour
+            iat: now
+        )
+
+        let payloadBase64String = try CalendarUtils.encodeJSON(payload)
+        let headersBase64String = try CalendarUtils.encodeJSON(self.headers)
+        let signingInput = "\(headersBase64String).\(payloadBase64String)"
+
+        let signature = try CalendarUtils.signRS256(
+            signingInput,
+            privateKeyPEM: serviceAccountConfig.privateKey
+        )
+
+        let jwtString = "\(signingInput).\(CalendarUtils.base64URLEncode(signature))"
+        print(jwtString)
+
+        var request = URLRequest(url: URL(string: "https://oauth2.googleapis.com/token")!)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+
+        var components = URLComponents()
+        components.queryItems = [
+            URLQueryItem(name: "grant_type", value: "urn:ietf:params:oauth:grant-type:jwt-bearer"),
+            URLQueryItem(name: "assertion", value: jwtString),
+        ]
+        let requestBody = Data((components.query ?? "").utf8)
+
+        do {
+            let (responseBody, response) = try await URLSession.shared.upload(for: request, from: requestBody)
+ 
+            guard let response = response as? HTTPURLResponse,
+                (200...299).contains(response.statusCode)
+            else {
+                throw URLError(.badServerResponse)
+            }
+
+            let responseDecoder = JSONDecoder()
+            responseDecoder.keyDecodingStrategy = .convertFromSnakeCase
+
+            self.accessToken = try responseDecoder.decode(AccessToken.self, from: responseBody)
+        } catch let error as NSError {
+            print("\(error.code): \(error)")
+        }
+
+        return self.accessToken
     }
 
     /// Fetches upcoming events from every calendar in `calendarIDs`, merged into one array
     /// and sorted by start date. All calendars are fetched concurrently.
     func fetchEvents() async throws -> [CalendarEvent] {
-        let accessToken = try await authorization.accessToken()
+        let accessToken = try await self.getAccessToken()
+
+        guard let unwrappedAccessToken = accessToken else {
+            print("Can't fetch calendar events without access token")
+            return []
+        }
+
+        print(unwrappedAccessToken.expiresAt)
 
         // withThrowingTaskGroup runs one "child task" per calendar at the same time,
         // instead of waiting for each network request to finish before starting the next.
@@ -55,7 +125,7 @@ actor GoogleCalendarProvider {
         let allEvents = try await withThrowingTaskGroup(of: [CalendarEvent].self) { group in
             for calendarID in calendarIDs {
                 group.addTask {
-                    try await self.fetchEvents(calendarID: calendarID, accessToken: accessToken)
+                    try await self.fetchEvents(calendarID: calendarID, accessToken: unwrappedAccessToken.accessToken)
                 }
             }
 
@@ -90,15 +160,10 @@ actor GoogleCalendarProvider {
         guard let httpResponse = response as? HTTPURLResponse,
             (200..<300).contains(httpResponse.statusCode)
         else {
-            throw GoogleCalendarProviderError.invalidResponse
+            throw GoogleCalendarProviderError.calendarInvalidResponse
         }
 
         let decoded = try JSONDecoder().decode(CalendarEventsResponse.self, from: data)
         return decoded.items
-    }
-
-    func shutdown() async throws {
-        try await authorization.shutdown()
-        try await eventLoopGroup.shutdownGracefully()
     }
 }

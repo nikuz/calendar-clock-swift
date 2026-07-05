@@ -13,7 +13,7 @@ let package = Package(
         .macOS("26.0")
     ],
     dependencies: [
-        .package(url: "https://github.com/rosecoder/google-cloud-auth-swift.git", from: "1.0.0")
+        // .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
     ],
     targets: [
         // The C module that wraps raylib
@@ -26,7 +26,7 @@ let package = Package(
             name: "CalendarClock",
             dependencies: [
                 "CRayLib",
-                .product(name: "GoogleCloudAuth", package: "google-cloud-auth-swift"),
+                // .product(name: "HTTPTypes", package: "swift-http-types"),
             ],
             path: "CalendarClock",
             linkerSettings: [

@@ -18,7 +18,7 @@ var showBox = false
 while !WindowShouldClose() && !KEY_Q.isPressed {
     BeginDrawing()
     ClearBackground(COLOR_BLACK)
-    
+
     let text = "Calendar Clock"
     let fontSize: Int32 = 20
     let textWidth = MeasureText(text, fontSize)
@@ -26,13 +26,13 @@ while !WindowShouldClose() && !KEY_Q.isPressed {
     let y = (CONTENT_HEIGHT / 2) - (fontSize / 2)
 
     DrawText(text, x, y, fontSize, COLOR_YELLOW)
-    
+
     let buttonClicked = GuiButton(Rectangle(x: 5, y: 5, width: 160, height: 40), "Click Me!")
     
     if buttonClicked != 0 {
         print("Button was clicked!")
     }
-    
+
     EndDrawing()
 }
 
