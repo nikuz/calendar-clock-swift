@@ -145,11 +145,19 @@ actor GoogleCalendarProvider {
     /// Fetches events for a single calendar. Kept private since callers should use
     /// `fetchEvents()` to get results across all configured calendars.
     private func fetchEvents(calendarID: String, accessToken: String) async throws -> [CalendarEvent] {
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+        let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
+
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = TimeZone.current
+
         var components = URLComponents(string: "https://www.googleapis.com/calendar/v3/calendars/\(calendarID)/events")!
         components.queryItems = [
             URLQueryItem(name: "singleEvents", value: "true"),
             URLQueryItem(name: "orderBy", value: "startTime"),
-            URLQueryItem(name: "timeMin", value: ISO8601DateFormatter().string(from: Date())),
+            URLQueryItem(name: "timeMin", value: formatter.string(from: startOfToday)),
+            URLQueryItem(name: "timeMax", value: formatter.string(from: startOfTomorrow)),
         ]
 
         var request = URLRequest(url: components.url!)
