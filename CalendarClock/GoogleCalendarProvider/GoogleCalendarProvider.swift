@@ -11,7 +11,7 @@ private enum GoogleCalendarProviderError: Error {
     case calendarInvalidResponse
 }
 
-class GoogleCalendarProvider {
+actor GoogleCalendarProvider {
     private let headers: JWTHeaders
     private let serviceAccountConfig: ServiceAccountConfig
     private let calendarIDs: [String]
