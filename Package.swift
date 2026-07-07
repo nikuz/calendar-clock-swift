@@ -14,6 +14,7 @@ let package = Package(
     ],
     dependencies: [
         // .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
+        .package(url: "https://github.com/uraimo/SwiftyGPIO.git", from: "1.4.4")
     ],
     targets: [
         // The C module that wraps raylib
@@ -27,6 +28,7 @@ let package = Package(
             dependencies: [
                 "CRayLib",
                 // .product(name: "HTTPTypes", package: "swift-http-types"),
+                .product(name: "SwiftyGPIO", package: "SwiftyGPIO"),
             ],
             path: "CalendarClock",
             linkerSettings: [

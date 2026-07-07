@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "swiftygpio",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/uraimo/SwiftyGPIO.git",
+      "state" : {
+        "revision" : "b86215de6ecde8e6649590978164a5532ef7a975",
+        "version" : "1.4.4"
+      }
+    }
+  ],
+  "version" : 2
+}

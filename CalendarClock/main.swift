@@ -5,12 +5,13 @@ final class AppState {
     var events: [CalendarEvent] = []
     var isLoading = true
     var loadError: Error?
+    var brightness: Double = 100
 }
 
 let appState = AppState()
 
-let calendarProvider = try GoogleCalendarProvider()
 Task(priority: .background) {
+    let calendarProvider = try GoogleCalendarProvider()
     do {
         while true {
             print("Loading calendar events at \(Date())")
@@ -28,13 +29,30 @@ Task(priority: .background) {
                 }
             }
 
-            try await Task.sleep(nanoseconds: 60 * 1_000_000_000)
+            try await Task.sleep(for: .seconds(60))
         }
     } catch {
         await MainActor.run {
             appState.loadError = error
             appState.isLoading = false
         }
+    }
+}
+
+Task(priority: .background) {
+    do {
+        let brightnessProvider = try BrightnessProvider()
+        try await brightnessProvider.initContinuousHighResMode();
+        while true {
+            let brightness = try await brightnessProvider.readLux();
+            print(brightness)
+            await MainActor.run {
+                appState.brightness = brightness
+            }
+            try await Task.sleep(for: .seconds(5))
+        }
+    } catch {
+        print("Brightness sensor unavailable: \(error)")
     }
 }
 
