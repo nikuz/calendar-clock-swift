@@ -9,6 +9,7 @@ private enum GoogleCalendarProviderError: Error {
     case configFileCantRead
     case calendarsFileNotFound
     case calendarInvalidResponse
+    case cantGetAccessToken
 }
 
 actor GoogleCalendarProvider {
@@ -53,7 +54,7 @@ actor GoogleCalendarProvider {
             let accessToken = self.accessToken,
             accessToken.expiresAt > now + 60 * 5  // expires in more than 5 minutes
         {
-            return self.accessToken
+            return accessToken
         }
 
         let payload = JWTPayload(
@@ -74,7 +75,6 @@ actor GoogleCalendarProvider {
         )
 
         let jwtString = "\(signingInput).\(CalendarUtils.base64URLEncode(signature))"
-        print(jwtString)
 
         var request = URLRequest(url: URL(string: "https://oauth2.googleapis.com/token")!)
         request.httpMethod = "POST"
@@ -116,8 +116,6 @@ actor GoogleCalendarProvider {
             print("Can't fetch calendar events without access token")
             return []
         }
-
-        print(unwrappedAccessToken.expiresAt)
 
         // withThrowingTaskGroup runs one "child task" per calendar at the same time,
         // instead of waiting for each network request to finish before starting the next.
@@ -173,5 +171,63 @@ actor GoogleCalendarProvider {
 
         let decoded = try JSONDecoder().decode(CalendarEventsResponse.self, from: data)
         return decoded.items
+    }
+
+    func watch() async throws {
+        let accessToken = try await self.getAccessToken()
+        guard let unwrappedAccessToken = accessToken else {
+            throw GoogleCalendarProviderError.cantGetAccessToken
+        }
+
+        var request = URLRequest(url: URL(string: "https://www.googleapis.com/calendar/v3/calendars/micurino@gmail.com/events/watch")!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(unwrappedAccessToken.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload = CalendarWatchPayload(id: UUID().uuidString)
+        let payloadData = try JSONEncoder().encode(payload)
+
+        do {
+            let (responseBody, response) = try await URLSession.shared.upload(for: request, from: payloadData)
+
+            guard let response = response as? HTTPURLResponse,
+                (200...299).contains(response.statusCode)
+            else {
+                throw URLError(.badServerResponse)
+            }
+
+            print(response.statusCode)
+            let decodedResponse = try JSONDecoder().decode(CalendarWatchResponse.self, from: responseBody)
+            print(decodedResponse)
+        } catch let error as NSError {
+            print("\(error.code): \(error)")
+        }
+    }
+
+    func stopWatching(id: String, resourceId: String) async throws {
+        let accessToken = try await self.getAccessToken()
+        guard let unwrappedAccessToken = accessToken else {
+            throw GoogleCalendarProviderError.cantGetAccessToken
+        }
+
+        var request = URLRequest(url: URL(string: "https://www.googleapis.com/calendar/v3/channels/stop")!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(unwrappedAccessToken.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload = CalendarStopWatchingPayload(id: id, resourceId: resourceId)
+        let payloadData = try JSONEncoder().encode(payload)
+
+        do {
+            let (_, response) = try await URLSession.shared.upload(for: request, from: payloadData)
+
+            guard let response = response as? HTTPURLResponse,
+                (200...299).contains(response.statusCode)
+            else {
+                throw URLError(.badServerResponse)
+            }
+        } catch let error as NSError {
+            print("\(error.code): \(error)")
+        }
     }
 }

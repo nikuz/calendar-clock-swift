@@ -13,24 +13,21 @@ let appState = AppState()
 Task(priority: .background) {
     let calendarProvider = try GoogleCalendarProvider()
     do {
-        while true {
-            print("Loading calendar events at \(Date())")
-            do {
-                let loadedEvents = try await calendarProvider.fetchEvents()
-                await MainActor.run {
-                    appState.events = loadedEvents
-                    appState.isLoading = false
-                    appState.loadError = nil
-                }
-            } catch {
-                await MainActor.run {
-                    appState.loadError = error
-                    appState.isLoading = false
-                }
-            }
-
-            try await Task.sleep(for: .seconds(60))
+        let loadedEvents = try await calendarProvider.fetchEvents()
+        await MainActor.run {
+            appState.events = loadedEvents
+            appState.isLoading = false
+            appState.loadError = nil
         }
+
+        // try await calendarProvider.watch()
+        // let channels = [
+        //     "",
+        // ];
+        // for id in channels {
+        //     print("Stop watch for:", id)
+        //     try await calendarProvider.stopWatching(id: id, resourceId: "92xi4TOMDwHcGFdoUhW7punEs-U")
+        // }
     } catch {
         await MainActor.run {
             appState.loadError = error
