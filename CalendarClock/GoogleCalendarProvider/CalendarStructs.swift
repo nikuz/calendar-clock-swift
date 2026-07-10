@@ -18,7 +18,7 @@ struct CalendarWatchPayload: Codable {
     var address = "https://humorous-repent-joyfully.ngrok-free.dev"
 }
 
-struct CalendarWatchResponse: Decodable {
+struct CalendarWatchResponse: Codable {
   let id: String
   let kind: String
   let resourceId: String

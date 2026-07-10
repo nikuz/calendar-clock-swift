@@ -20,14 +20,8 @@ Task(priority: .background) {
             appState.loadError = nil
         }
 
-        // try await calendarProvider.watch()
-        // let channels = [
-        //     "",
-        // ];
-        // for id in channels {
-        //     print("Stop watch for:", id)
-        //     try await calendarProvider.stopWatching(id: id, resourceId: "92xi4TOMDwHcGFdoUhW7punEs-U")
-        // }
+        try await calendarProvider.watch()
+        // try await calendarProvider.stopWatching()
     } catch {
         await MainActor.run {
             appState.loadError = error

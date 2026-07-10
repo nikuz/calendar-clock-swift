@@ -4,6 +4,7 @@ import Security
 private let serviceAccountFilePath = "config/calendar-gcloud-service-account.json"
 private let calendarsFilePath = "config/calendar-ids.json"
 private let authTokenFilePath = "Documents/calendar-clock/auth-token.json"
+private let watchTokensFilePath = "Documents/calendar-clock/watch-responses.json"
 
 private enum GoogleCalendarProviderError: Error {
     case configFileNotFound
@@ -18,7 +19,9 @@ actor GoogleCalendarProvider {
     private let serviceAccountConfig: ServiceAccountConfig
     private let calendarIDs: [String]
     private var accessToken: AccessToken?
-    private var accessTokenFileUrl: URL
+    private let accessTokenFileUrl: URL
+    private let watchResponsesFileUrl: URL
+    private var watchResponses: [String: CalendarWatchResponse] = [:]
 
     init() throws {
         let fileManager = FileManager.default
@@ -50,13 +53,22 @@ actor GoogleCalendarProvider {
 
         // extract saved access token
         self.accessTokenFileUrl = fileManager.homeDirectoryForCurrentUser.appendingPathComponent(authTokenFilePath)
-        print(self.accessTokenFileUrl)
         if fileManager.fileExists(atPath: self.accessTokenFileUrl.path) {
             let accessTokenData = try Data(contentsOf: self.accessTokenFileUrl)
             self.accessToken = try JSONDecoder().decode(AccessToken.self, from: accessTokenData)
             print("Extracted stored access token")
         } else {
-            print("No access token stored, get new one")
+            print("No access token stored")
+        }
+
+        // extract watch responses
+        self.watchResponsesFileUrl = fileManager.homeDirectoryForCurrentUser.appendingPathComponent(watchTokensFilePath)
+        if fileManager.fileExists(atPath: self.watchResponsesFileUrl.path) {
+            let watchResponsesData = try Data(contentsOf: self.watchResponsesFileUrl)
+            self.watchResponses = try JSONDecoder().decode([String: CalendarWatchResponse].self, from: watchResponsesData)
+            print("Extracted stored watch responses")
+        } else {
+            print("No watch responses stored")
         }
     }
 
@@ -116,8 +128,8 @@ actor GoogleCalendarProvider {
             self.accessToken = try responseDecoder.decode(AccessToken.self, from: responseBody)
 
             // store access token
-            let encodedToken = try JSONEncoder().encode(self.accessToken)
             print("Storing access token at:", self.accessTokenFileUrl)
+            let encodedToken = try JSONEncoder().encode(self.accessToken)
             let fileManager = FileManager.default
             if fileManager.fileExists(atPath: self.accessTokenFileUrl.path) {
                 try encodedToken.write(to: self.accessTokenFileUrl)
@@ -207,55 +219,111 @@ actor GoogleCalendarProvider {
             throw GoogleCalendarProviderError.cantGetAccessToken
         }
 
-        var request = URLRequest(url: URL(string: "https://www.googleapis.com/calendar/v3/calendars/micurino@gmail.com/events/watch")!)
+        var watchResponses: [String: CalendarWatchResponse] = [:]
+        try await withThrowingTaskGroup(of: (calendarID: String, response: CalendarWatchResponse?).self) { group in
+            for calendarID in calendarIDs {
+                if self.watchResponses[calendarID] == nil {
+                    group.addTask {
+                        try await self.watch(calendarID: calendarID, accessToken: unwrappedAccessToken.accessToken)
+                    }
+                }
+            }
+
+            // Collect the results from every child task as they complete.
+            for try await item in group {
+                if let response = item.response {
+                    watchResponses[item.calendarID] = response
+                }
+            }
+        }
+
+        var isEqual = true
+        for (calendarId, _) in watchResponses {
+            if self.watchResponses[calendarId] == nil  {
+                isEqual = false
+            }
+        }
+        if !isEqual {
+            // store watch responses
+            print("Storing watch responses at:", self.watchResponsesFileUrl)
+            let encodedWatchResponses = try JSONEncoder().encode(watchResponses)
+            let fileManager = FileManager.default
+            if fileManager.fileExists(atPath: self.watchResponsesFileUrl.path) {
+                try encodedWatchResponses.write(to: self.watchResponsesFileUrl)
+            } else {
+                try fileManager.createDirectory(
+                    at: self.watchResponsesFileUrl.deletingLastPathComponent(),
+                    withIntermediateDirectories: true,
+                )
+                fileManager.createFile(
+                    atPath: self.watchResponsesFileUrl.path, contents: encodedWatchResponses)
+            }
+        }
+    }
+
+    private func watch(calendarID: String, accessToken: String) async throws -> (calendarID: String, response: CalendarWatchResponse?) {
+        print("Watch ", calendarID)
+        var request = URLRequest(url: URL(string: "https://www.googleapis.com/calendar/v3/calendars/\(calendarID)/events/watch")!)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(unwrappedAccessToken.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let payload = CalendarWatchPayload(id: UUID().uuidString)
         let payloadData = try JSONEncoder().encode(payload)
 
-        do {
-            let (responseBody, response) = try await URLSession.shared.upload(for: request, from: payloadData)
+        let (responseBody, response) = try await URLSession.shared.upload(for: request, from: payloadData)
 
-            guard let response = response as? HTTPURLResponse,
-                (200...299).contains(response.statusCode)
-            else {
-                throw URLError(.badServerResponse)
-            }
-
-            print(response.statusCode)
-            let decodedResponse = try JSONDecoder().decode(CalendarWatchResponse.self, from: responseBody)
-            print(decodedResponse)
-        } catch let error as NSError {
-            print("\(error.code): \(error)")
+        guard let response = response as? HTTPURLResponse,
+            (200...299).contains(response.statusCode)
+        else {
+            throw URLError(.badServerResponse)
         }
+
+        return (
+            calendarID: calendarID, 
+            response: try JSONDecoder().decode(CalendarWatchResponse.self, from: responseBody)
+        )
     }
 
-    func stopWatching(id: String, resourceId: String) async throws {
+    func stopWatching() async throws {
         let accessToken = try await self.getAccessToken()
         guard let unwrappedAccessToken = accessToken else {
             throw GoogleCalendarProviderError.cantGetAccessToken
         }
 
+        await withThrowingTaskGroup { group in
+            for (_, watchResponse) in self.watchResponses {
+                group.addTask {
+                    try await self.stopWatching(
+                        id: watchResponse.id, 
+                        resourceId: watchResponse.resourceId, 
+                        accessToken: unwrappedAccessToken.accessToken
+                    )
+                }
+            }
+        }
+
+        // store watch responses
+        print("Remove watch responses at:", self.watchResponsesFileUrl)
+        try FileManager.default.removeItem(at: self.watchResponsesFileUrl)
+    }
+
+    private func stopWatching(id: String, resourceId: String, accessToken: String) async throws {
+        print("Stop watching ", id)
         var request = URLRequest(url: URL(string: "https://www.googleapis.com/calendar/v3/channels/stop")!)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(unwrappedAccessToken.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let payload = CalendarStopWatchingPayload(id: id, resourceId: resourceId)
         let payloadData = try JSONEncoder().encode(payload)
 
-        do {
-            let (_, response) = try await URLSession.shared.upload(for: request, from: payloadData)
+        let (_, response) = try await URLSession.shared.upload(for: request, from: payloadData)
 
-            guard let response = response as? HTTPURLResponse,
-                (200...299).contains(response.statusCode)
-            else {
-                throw URLError(.badServerResponse)
-            }
-        } catch let error as NSError {
-            print("\(error.code): \(error)")
+        guard let response = response as? HTTPURLResponse,
+            (200...299).contains(response.statusCode)
+        else {
+            throw URLError(.badServerResponse)
         }
     }
 }
