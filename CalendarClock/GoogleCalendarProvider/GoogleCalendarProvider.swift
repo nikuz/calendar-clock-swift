@@ -3,6 +3,7 @@ import Security
 
 private let serviceAccountFilePath = "config/calendar-gcloud-service-account.json"
 private let calendarsFilePath = "config/calendar-ids.json"
+private let authTokenFilePath = "Documents/calendar-clock/auth-token.json"
 
 private enum GoogleCalendarProviderError: Error {
     case configFileNotFound
@@ -17,10 +18,12 @@ actor GoogleCalendarProvider {
     private let serviceAccountConfig: ServiceAccountConfig
     private let calendarIDs: [String]
     private var accessToken: AccessToken?
+    private var accessTokenFileUrl: URL
 
     init() throws {
+        let fileManager = FileManager.default
         let serviceAccountFileUrl = URL(fileURLWithPath: serviceAccountFilePath)
-        guard FileManager.default.fileExists(atPath: serviceAccountFileUrl.path) else {
+        guard fileManager.fileExists(atPath: serviceAccountFileUrl.path) else {
             throw GoogleCalendarProviderError.configFileNotFound
         }
 
@@ -39,11 +42,22 @@ actor GoogleCalendarProvider {
         self.headers = JWTHeaders()
 
         let calendarsUrl = URL(fileURLWithPath: calendarsFilePath)
-        guard FileManager.default.fileExists(atPath: calendarsUrl.path) else {
+        guard fileManager.fileExists(atPath: calendarsUrl.path) else {
             throw GoogleCalendarProviderError.calendarsFileNotFound
         }
         let jsonData = try Data(contentsOf: calendarsUrl)
         self.calendarIDs = try JSONDecoder().decode([String].self, from: jsonData)
+
+        // extract saved access token
+        self.accessTokenFileUrl = fileManager.homeDirectoryForCurrentUser.appendingPathComponent(authTokenFilePath)
+        print(self.accessTokenFileUrl)
+        if fileManager.fileExists(atPath: self.accessTokenFileUrl.path) {
+            let accessTokenData = try Data(contentsOf: self.accessTokenFileUrl)
+            self.accessToken = try JSONDecoder().decode(AccessToken.self, from: accessTokenData)
+            print("Extracted stored access token")
+        } else {
+            print("No access token stored, get new one")
+        }
     }
 
     func getAccessToken() async throws -> AccessToken? {
@@ -100,6 +114,20 @@ actor GoogleCalendarProvider {
             responseDecoder.keyDecodingStrategy = .convertFromSnakeCase
 
             self.accessToken = try responseDecoder.decode(AccessToken.self, from: responseBody)
+
+            // store access token
+            let encodedToken = try JSONEncoder().encode(self.accessToken)
+            print("Storing access token at:", self.accessTokenFileUrl)
+            let fileManager = FileManager.default
+            if fileManager.fileExists(atPath: self.accessTokenFileUrl.path) {
+                try encodedToken.write(to: self.accessTokenFileUrl)
+            } else {
+                try fileManager.createDirectory(
+                    at: self.accessTokenFileUrl.deletingLastPathComponent(),
+                    withIntermediateDirectories: true,
+                )
+                fileManager.createFile(atPath: self.accessTokenFileUrl.path, contents: encodedToken)
+            }
         } catch let error as NSError {
             print("\(error.code): \(error)")
         }
