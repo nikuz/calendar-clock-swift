@@ -142,7 +142,7 @@ actor GoogleCalendarProvider {
                     at: self.accessTokenFileUrl.deletingLastPathComponent(),
                     withIntermediateDirectories: true,
                 )
-                fileManager.createFile(atPath: self.accessTokenFileUrl.path, contents: encodedToken)
+                _ = fileManager.createFile(atPath: self.accessTokenFileUrl.path, contents: encodedToken)
             }
         } catch let error as NSError {
             print("\(error.code): \(error)")
@@ -259,8 +259,7 @@ actor GoogleCalendarProvider {
                     at: self.watchResponsesFileUrl.deletingLastPathComponent(),
                     withIntermediateDirectories: true,
                 )
-                fileManager.createFile(
-                    atPath: self.watchResponsesFileUrl.path, contents: encodedWatchResponses)
+                _ = fileManager.createFile(atPath: self.watchResponsesFileUrl.path, contents: encodedWatchResponses)
             }
         }
     }
