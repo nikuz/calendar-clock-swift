@@ -1,35 +1,25 @@
 import Foundation
+import Synchronization
 
-final class AppState {
-    private let lock = NSLock()
+enum CalendarState: Sendable {
+    case loading
+    case loaded([CalendarEvent])
+    case failed(any Error & Sendable)
+}
 
-    // Internal backing properties
-    private var _events: [CalendarEvent] = []
-    private var _isLoading = true
-    private var _loadError: Error?
-    private var _brightness: Double = 100
+struct StateData: Sendable {
+    var calendar: CalendarState = .loading
+    var brightness: Double = 100
+}
 
-    // Thread-safe computed properties
-    var events: [CalendarEvent] {
-        get { lock.lock(); defer { lock.unlock() }; return _events }
-        set { lock.lock(); defer { lock.unlock() }; _events = newValue }
+final class AppState: Sendable {
+    private let state = Mutex(StateData())
+
+    var current: StateData {
+        state.withLock { $0 }
     }
 
-    var isLoading: Bool {
-        get { lock.lock(); defer { lock.unlock() }; return _isLoading }
-        set { lock.lock(); defer { lock.unlock() }; _always_write_safely(_isLoading = newValue) }
+    func update(_ body: (inout StateData) -> Void) {
+        state.withLock { body(&$0) }
     }
-
-    var loadError: Error? {
-        get { lock.lock(); defer { lock.unlock() }; return _loadError }
-        set { lock.lock(); defer { lock.unlock() }; _loadError = newValue }
-    }
-
-    var brightness: Double {
-        get { lock.lock(); defer { lock.unlock() }; return _brightness }
-        set { lock.lock(); defer { lock.unlock() }; _brightness = newValue }
-    }
-
-    // Tiny helper helper to keep defer block tidy
-    private func _always_write_safely(_ body: @autoclosure () -> Void) { body() }
 }

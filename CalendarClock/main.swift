@@ -3,22 +3,19 @@ import CRayLib
 
 let appState = AppState()
 
-Task.detached(priority: .background) { [appState] in
+let calendarBackgroundTask = Task.detached(priority: .background) { [appState] in
     // let networkListener = CalendarNetworkListener()
     // networkListener.startListening(on: 80)
 
-    let calendarProvider = try GoogleCalendarProvider()
     do {
+        let calendarProvider = try GoogleCalendarProvider()
         let loadedEvents = try await calendarProvider.fetchEvents()
-        appState.events = loadedEvents
-        appState.isLoading = false
-        appState.loadError = nil
+        appState.update { $0.calendar = .loaded(loadedEvents) }
 
         // try await calendarProvider.watch()
         // try await calendarProvider.stopWatching()
     } catch {
-        appState.loadError = error
-        appState.isLoading = false
+        appState.update { $0.calendar = .failed(error) }
     }
 }
 
@@ -57,22 +54,19 @@ while !WindowShouldClose() && !KEY_Q.isPressed {
 
     DrawText(text, x, y, fontSize, COLOR_YELLOW)
 
-    if appState.isLoading {
+    switch appState.current.calendar {
+    case .loading:
         let loadingText = "Loading events..."
         let loadingTextWidth = MeasureText(loadingText, 18)
         let loadingX = (SCREEN_WIDTH / 2) - (loadingTextWidth / 2)
         DrawText(loadingText, loadingX, y + 40, 18, COLOR_WHITE)
-    } else if let loadError = appState.loadError {
-        let errorText = "Failed to load events: \(loadError.localizedDescription)"
-        let errorTextWidth = MeasureText(errorText, 16)
-        let errorX = (SCREEN_WIDTH / 2) - (errorTextWidth / 2)
-        DrawText(errorText, errorX, y + 40, 16, COLOR_RED)
-    } else {
+
+    case .loaded(let events):
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         formatter.timeStyle = .short
 
-        for (index, event) in appState.events.enumerated() {
+        for (index, event) in events.enumerated() {
             let summary = event.summary ?? "(untitled)"
             let dateString: String
             if let date = event.start.date {
@@ -83,16 +77,23 @@ while !WindowShouldClose() && !KEY_Q.isPressed {
             let eventText = "\(summary) — \(dateString)"
             DrawText(eventText, 20, Int32(80 + index * 20), 16, COLOR_WHITE)
         }
+
+    case .failed(let error):
+        let errorText = "Failed to load events: \(error.localizedDescription)"
+        let errorTextWidth = MeasureText(errorText, 16)
+        let errorX = (SCREEN_WIDTH / 2) - (errorTextWidth / 2)
+        DrawText(errorText, errorX, y + 40, 16, COLOR_RED)
     }
 
     let buttonClicked = GuiButton(Rectangle(x: 5, y: 5, width: 160, height: 40), "Click Me!")
 
     if buttonClicked != 0 {
         print("Button was clicked!")
-        appState.events = []
+        appState.update{ $0.calendar = .loaded([]) }
     }
 
     EndDrawing()
 }
 
+calendarBackgroundTask.cancel();
 CloseWindow()
