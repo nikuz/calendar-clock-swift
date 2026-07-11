@@ -7,8 +7,8 @@ import Foundation
 
 private let serviceAccountFilePath = "config/calendar-gcloud-service-account.json"
 private let calendarsFilePath = "config/calendar-ids.json"
-private let authTokenFilePath = "Documents/calendar-clock/auth-token.json"
-private let watchTokensFilePath = "Documents/calendar-clock/watch-responses.json"
+private let authTokenFilePath = "temp/auth-token.json"
+private let watchTokensFilePath = "temp/watch-responses.json"
 
 private enum GoogleCalendarProviderError: Error {
     case configFileNotFound
@@ -56,7 +56,7 @@ actor GoogleCalendarProvider {
         self.calendarIDs = try JSONDecoder().decode([String].self, from: jsonData)
 
         // extract saved access token
-        self.accessTokenFileUrl = fileManager.homeDirectoryForCurrentUser.appendingPathComponent(authTokenFilePath)
+        self.accessTokenFileUrl = URL.currentDirectory().appendingPathComponent(authTokenFilePath)
         if fileManager.fileExists(atPath: self.accessTokenFileUrl.path) {
             let accessTokenData = try Data(contentsOf: self.accessTokenFileUrl)
             self.accessToken = try JSONDecoder().decode(AccessToken.self, from: accessTokenData)
@@ -66,7 +66,7 @@ actor GoogleCalendarProvider {
         }
 
         // extract watch responses
-        self.watchResponsesFileUrl = fileManager.homeDirectoryForCurrentUser.appendingPathComponent(watchTokensFilePath)
+        self.watchResponsesFileUrl = URL.currentDirectory().appendingPathComponent(watchTokensFilePath)
         if fileManager.fileExists(atPath: self.watchResponsesFileUrl.path) {
             let watchResponsesData = try Data(contentsOf: self.watchResponsesFileUrl)
             self.watchResponses = try JSONDecoder().decode([String: CalendarWatchResponse].self, from: watchResponsesData)

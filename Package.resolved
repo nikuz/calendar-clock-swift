@@ -1,12 +1,21 @@
 {
   "pins" : [
     {
-      "identity" : "swiftygpio",
+      "identity" : "swift-asn1",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/uraimo/SwiftyGPIO.git",
+      "location" : "https://github.com/apple/swift-asn1.git",
       "state" : {
-        "revision" : "b86215de6ecde8e6649590978164a5532ef7a975",
-        "version" : "1.4.4"
+        "revision" : "a9a5efd40eaf558a2bcd48d64b1d1646be686008",
+        "version" : "1.7.1"
+      }
+    },
+    {
+      "identity" : "swift-crypto",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-crypto.git",
+      "state" : {
+        "revision" : "1b6b2e274e85105bfa155183145a1dcfd63331f1",
+        "version" : "4.5.0"
       }
     }
   ],
