@@ -1,5 +1,9 @@
 import Foundation
-import Security
+
+// for linux
+#if canImport(FoundationNetworking)
+    import FoundationNetworking
+#endif
 
 private let serviceAccountFilePath = "config/calendar-gcloud-service-account.json"
 private let calendarsFilePath = "config/calendar-ids.json"

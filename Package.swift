@@ -7,6 +7,8 @@ let rayLibPath = "libs/macos"
 let rayLibPath = "libs/linux-arm64"
 #endif
 
+let development = true
+
 let package = Package(
     name: "CalendarClock",
     platforms: [
@@ -14,7 +16,7 @@ let package = Package(
     ],
     dependencies: [
         // .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
-        .package(url: "https://github.com/uraimo/SwiftyGPIO.git", from: "1.4.4")
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "4.5.0")
     ],
     targets: [
         // The C module that wraps raylib
@@ -28,7 +30,9 @@ let package = Package(
             dependencies: [
                 "CRayLib",
                 // .product(name: "HTTPTypes", package: "swift-http-types"),
-                .product(name: "SwiftyGPIO", package: "SwiftyGPIO"),
+                // .product(name: "SwiftyGPIO", package: "SwiftyGPIO"),
+                .product(name: "Crypto", package: "swift-crypto"),
+                .product(name: "CryptoExtras", package: "swift-crypto"),
             ],
             path: "CalendarClock",
             linkerSettings: [

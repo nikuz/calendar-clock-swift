@@ -17,10 +17,15 @@ DietPI is Debian, choose `Debian` option when prompted. Make sure to install req
 > [!NOTE]
 > Install swift under `dietpi` user. 
 
+### Install build essentials
+```bash
+sudo apt install build-essential
+```
+
 ### RayLib compilation (optional)
-1. Install `cmake` and build essentials
+1. Install `cmake`
     ```bash
-    sudo apt install cmake build-essential
+    sudo apt install cmake
     ```
 2. Clone RayLib
     ```bash

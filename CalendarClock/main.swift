@@ -11,6 +11,9 @@ final class AppState {
 let appState = AppState()
 
 Task(priority: .background) {
+    // let networkListener = CalendarNetworkListener()
+    // networkListener.startListening(on: 80)
+
     let calendarProvider = try GoogleCalendarProvider()
     do {
         let loadedEvents = try await calendarProvider.fetchEvents()
@@ -20,7 +23,7 @@ Task(priority: .background) {
             appState.loadError = nil
         }
 
-        try await calendarProvider.watch()
+        // try await calendarProvider.watch()
         // try await calendarProvider.stopWatching()
     } catch {
         await MainActor.run {
@@ -30,22 +33,22 @@ Task(priority: .background) {
     }
 }
 
-Task(priority: .background) {
-    do {
-        let brightnessProvider = try BrightnessProvider()
-        try await brightnessProvider.initContinuousHighResMode();
-        while true {
-            let brightness = try await brightnessProvider.readLux();
-            print(brightness)
-            await MainActor.run {
-                appState.brightness = brightness
-            }
-            try await Task.sleep(for: .seconds(5))
-        }
-    } catch {
-        print("Brightness sensor unavailable: \(error)")
-    }
-}
+// Task(priority: .background) {
+//     do {
+//         let brightnessProvider = try BrightnessProvider()
+//         try await brightnessProvider.initContinuousHighResMode();
+//         while true {
+//             let brightness = try await brightnessProvider.readLux();
+//             print(brightness)
+//             await MainActor.run {
+//                 appState.brightness = brightness
+//             }
+//             try await Task.sleep(for: .seconds(5))
+//         }
+//     } catch {
+//         print("Brightness sensor unavailable: \(error)")
+//     }
+// }
 
 @MainActor
 func runApp() async {
