@@ -5,11 +5,12 @@ let appState = AppState()
 
 let calendarBackgroundTask = Task.detached(priority: .background) { [appState] in
     do {
+        let ngrokCredentials = try await NgrokCredentials()
         let calendarProvider = try GoogleCalendarProvider()
         let loadedEvents = try await calendarProvider.fetchEvents()
         appState.update { $0.calendar = .loaded(loadedEvents) }
 
-        let server = CalendarWebhookServer(port: 8080) { channelId in
+        let server = CalendarWebhookServer(port: 8080, ngrokCredentials: ngrokCredentials) { channelId in
             print("Received Google Channel ID: \(channelId)")
             let loadedEvents = try await calendarProvider.fetchEvents()
             appState.update { $0.calendar = .loaded(loadedEvents) }
@@ -17,9 +18,10 @@ let calendarBackgroundTask = Task.detached(priority: .background) { [appState] i
 
         try server.start()
 
-        // try await calendarProvider.watch()
+        // try await calendarProvider.watch(ngrokCredentials: ngrokCredentials)
         // try await calendarProvider.stopWatching()
     } catch {
+        print(error)
         appState.update { $0.calendar = .failed(error) }
     }
 }

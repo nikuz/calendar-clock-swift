@@ -48,12 +48,12 @@ actor GoogleCalendarProvider {
 
         self.headers = JWTHeaders()
 
-        let calendarsUrl = URL(fileURLWithPath: calendarsFilePath)
-        guard fileManager.fileExists(atPath: calendarsUrl.path) else {
+        let calendarsUrls = URL(fileURLWithPath: calendarsFilePath)
+        guard fileManager.fileExists(atPath: calendarsUrls.path) else {
             throw GoogleCalendarProviderError.calendarsFileNotFound
         }
-        let jsonData = try Data(contentsOf: calendarsUrl)
-        self.calendarIDs = try JSONDecoder().decode([String].self, from: jsonData)
+        let calendarsUrlsJsonData = try Data(contentsOf: calendarsUrls)
+        self.calendarIDs = try JSONDecoder().decode([String].self, from: calendarsUrlsJsonData)
 
         // extract saved access token
         self.accessTokenFileUrl = URL.currentDirectory().appendingPathComponent(authTokenFilePath)
@@ -217,7 +217,7 @@ actor GoogleCalendarProvider {
         return decoded.items
     }
 
-    func watch() async throws {
+    func watch(ngrokCredentials: NgrokCredentials) async throws {
         let accessToken = try await self.getAccessToken()
         guard let unwrappedAccessToken = accessToken else {
             throw GoogleCalendarProviderError.cantGetAccessToken
@@ -228,7 +228,11 @@ actor GoogleCalendarProvider {
             for calendarID in calendarIDs {
                 if self.watchResponses[calendarID] == nil {
                     group.addTask {
-                        try await self.watch(calendarID: calendarID, accessToken: unwrappedAccessToken.accessToken)
+                        try await self.watch(
+                            calendarID: calendarID, 
+                            accessToken: unwrappedAccessToken.accessToken,
+                            ngrokCredentials: ngrokCredentials,
+                        )
                     }
                 }
             }
@@ -264,14 +268,23 @@ actor GoogleCalendarProvider {
         }
     }
 
-    private func watch(calendarID: String, accessToken: String) async throws -> (calendarID: String, response: CalendarWatchResponse?) {
+    private func watch(
+        calendarID: String, 
+        accessToken: String,
+        ngrokCredentials: NgrokCredentials,
+    ) async throws -> (calendarID: String, response: CalendarWatchResponse?) {
         print("Watch ", calendarID)
         var request = URLRequest(url: URL(string: "https://www.googleapis.com/calendar/v3/calendars/\(calendarID)/events/watch")!)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let payload = CalendarWatchPayload(id: UUID().uuidString)
+        let payload = CalendarWatchPayload(
+            id: UUID().uuidString, 
+            address: ngrokCredentials.domainURL,
+            user: ngrokCredentials.user,
+            password: ngrokCredentials.password
+        )
         let payloadData = try JSONEncoder().encode(payload)
 
         let (responseBody, response) = try await URLSession.shared.upload(for: request, from: payloadData)
