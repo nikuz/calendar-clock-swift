@@ -4,13 +4,18 @@ import CRayLib
 let appState = AppState()
 
 let calendarBackgroundTask = Task.detached(priority: .background) { [appState] in
-    // let networkListener = CalendarNetworkListener()
-    // networkListener.startListening(on: 80)
-
     do {
         let calendarProvider = try GoogleCalendarProvider()
         let loadedEvents = try await calendarProvider.fetchEvents()
         appState.update { $0.calendar = .loaded(loadedEvents) }
+
+        let server = CalendarWebhookServer(port: 8080) { channelId in
+            print("Received Google Channel ID: \(channelId)")
+            let loadedEvents = try await calendarProvider.fetchEvents()
+            appState.update { $0.calendar = .loaded(loadedEvents) }
+        }
+
+        try server.start()
 
         // try await calendarProvider.watch()
         // try await calendarProvider.stopWatching()

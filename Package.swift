@@ -15,8 +15,8 @@ let package = Package(
         .macOS("26.0")
     ],
     dependencies: [
-        // .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
-        .package(url: "https://github.com/apple/swift-crypto.git", from: "4.5.0")
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "4.5.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.101.2"),
     ],
     targets: [
         // The C module that wraps raylib
@@ -29,10 +29,10 @@ let package = Package(
             name: "CalendarClock",
             dependencies: [
                 "CRayLib",
-                // .product(name: "HTTPTypes", package: "swift-http-types"),
-                // .product(name: "SwiftyGPIO", package: "SwiftyGPIO"),
                 .product(name: "Crypto", package: "swift-crypto"),
                 .product(name: "CryptoExtras", package: "swift-crypto"),
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
             ],
             path: "CalendarClock",
             linkerSettings: [
