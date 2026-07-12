@@ -17,6 +17,7 @@ final class CalendarWebhookServer {
 
     func start() throws {
         let bootstrap = ServerBootstrap(group: group)
+            .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelInitializer { channel in
                 channel.pipeline.configureHTTPServerPipeline().flatMap {
                     channel.pipeline.addHandler(WebhookHandler(
