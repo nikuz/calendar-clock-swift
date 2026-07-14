@@ -1,33 +1,24 @@
 import Foundation
 
-/// Matches the top-level response from `GET /calendars/{calendarId}/events`.
-/// Google wraps the actual event list inside an "items" array — this struct exists
-/// purely so JSONDecoder has something to decode the whole response into.
-struct CalendarEventsResponse: Decodable {
+struct CalendarEventsResponse: Decodable, Sendable {
     let items: [CalendarEvent]
 }
 
-/// One event from the Google Calendar API.
-/// Only the fields you're likely to actually use are modeled — the real API response
-/// has many more (attendees, recurrence, colorId, etc.). Add fields here as you need them.
-struct CalendarEvent: Decodable, Identifiable {
+struct CalendarEvent: Decodable, Identifiable, Sendable {
     let id: String
-    let summary: String?  // event title — optional because Google allows untitled events
+    let summary: String?  
     let description: String?
     let location: String?
     let start: EventDateTime
     let end: EventDateTime
 
-    /// Google represents a date/time two different ways depending on whether the event
-    /// is all-day or has a specific time:
-    ///   - all-day event:  { "date": "2026-07-04" }
-    ///   - timed event:    { "dateTime": "2026-07-04T09:00:00-07:00", "timeZone": "America/Los_Angeles" }
-    /// This struct captures both possibilities; `date` decodes it into a single Swift `Date`
-    /// so the rest of your code doesn't need to care which case it was.
     struct EventDateTime: Decodable {
         let dateOnly: String?
         let dateTime: String?
         let timeZone: String?
+
+        let isAllDay: Bool
+        let date: Date?
 
         enum CodingKeys: String, CodingKey {
             case dateOnly = "date"
@@ -35,23 +26,36 @@ struct CalendarEvent: Decodable, Identifiable {
             case timeZone
         }
 
-        /// True if this represents an all-day event rather than a specific time.
-        var isAllDay: Bool {
-            dateOnly != nil
-        }
-
-        /// The parsed Swift `Date`, regardless of which of the two formats Google sent.
-        var date: Date? {
-            if let dateTime {
-                return ISO8601DateFormatter().date(from: dateTime)
+        private static let ymdFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            formatter.timeZone = TimeZone(identifier: "UTC")
+            return formatter
+        }()
+        
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            
+            let decodedDateOnly = try container.decodeIfPresent(String.self, forKey: .dateOnly)
+            let decodedDateTime = try container.decodeIfPresent(String.self, forKey: .dateTime)
+            
+            self.dateOnly = decodedDateOnly
+            self.dateTime = decodedDateTime
+            self.timeZone = try container.decodeIfPresent(String.self, forKey: .timeZone)
+            self.isAllDay = (decodedDateOnly != nil)
+            
+            // Parse using modern, thread-safe value strategies
+            if let dt = decodedDateTime {
+                self.date = try? Date(dt, strategy: .iso8601)
+            } else if let dOnly = decodedDateOnly {
+                let ymdStrategy = Date.ParseStrategy(
+                    format: "\(year: .defaultDigits)-\(month: .defaultDigits)-\(day: .defaultDigits)",
+                    timeZone: TimeZone(identifier: "UTC")!
+                )
+                self.date = try? Date(dOnly, strategy: ymdStrategy)
+            } else {
+                self.date = nil
             }
-            if let dateOnly {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "yyyy-MM-dd"
-                formatter.timeZone = TimeZone(identifier: "UTC")
-                return formatter.date(from: dateOnly)
-            }
-            return nil
         }
     }
 }

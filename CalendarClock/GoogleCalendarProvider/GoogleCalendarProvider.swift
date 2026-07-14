@@ -8,7 +8,7 @@ import Foundation
 private let serviceAccountFilePath = "config/calendar-gcloud-service-account.json"
 private let calendarsFilePath = "config/calendar-ids.json"
 private let authTokenFilePath = "temp/auth-token.json"
-private let watchTokensFilePath = "temp/watch-responses.json"
+private let watchChannelsFilePath = "temp/watch-channels.json"
 
 private enum GoogleCalendarProviderError: Error {
     case configFileNotFound
@@ -24,8 +24,8 @@ actor GoogleCalendarProvider {
     private let calendarIDs: [String]
     private var accessToken: AccessToken?
     private let accessTokenFileUrl: URL
-    private let watchResponsesFileUrl: URL
-    private var watchResponses: [String: CalendarWatchResponse] = [:]
+    private let watchChannelsFileUrl: URL
+    private var watchChannels: [String: CalendarWatchChannel] = [:]
 
     init() throws {
         let fileManager = FileManager.default
@@ -65,14 +65,14 @@ actor GoogleCalendarProvider {
             print("No access token stored")
         }
 
-        // extract watch responses
-        self.watchResponsesFileUrl = URL.currentDirectory().appendingPathComponent(watchTokensFilePath)
-        if fileManager.fileExists(atPath: self.watchResponsesFileUrl.path) {
-            let watchResponsesData = try Data(contentsOf: self.watchResponsesFileUrl)
-            self.watchResponses = try JSONDecoder().decode([String: CalendarWatchResponse].self, from: watchResponsesData)
-            print("Extracted stored watch responses")
+        // extract watch channels
+        self.watchChannelsFileUrl = URL.currentDirectory().appendingPathComponent(watchChannelsFilePath)
+        if fileManager.fileExists(atPath: self.watchChannelsFileUrl.path) {
+            let watchChannelsData = try Data(contentsOf: self.watchChannelsFileUrl)
+            self.watchChannels = try JSONDecoder().decode([String: CalendarWatchChannel].self, from: watchChannelsData)
+            print("Extracted stored watch channels")
         } else {
-            print("No watch responses stored")
+            print("No watch channels stored")
         }
     }
 
@@ -223,10 +223,10 @@ actor GoogleCalendarProvider {
             throw GoogleCalendarProviderError.cantGetAccessToken
         }
 
-        var watchResponses: [String: CalendarWatchResponse] = [:]
-        try await withThrowingTaskGroup(of: (calendarID: String, response: CalendarWatchResponse?).self) { group in
+        var watchChannels: [String: CalendarWatchChannel] = [:]
+        try await withThrowingTaskGroup(of: (calendarID: String, channel: CalendarWatchChannel?).self) { group in
             for calendarID in calendarIDs {
-                if self.watchResponses[calendarID] == nil {
+                if self.watchChannels[calendarID] == nil {
                     group.addTask {
                         try await self.watch(
                             calendarID: calendarID, 
@@ -239,31 +239,31 @@ actor GoogleCalendarProvider {
 
             // Collect the results from every child task as they complete.
             for try await item in group {
-                if let response = item.response {
-                    watchResponses[item.calendarID] = response
+                if let channel = item.channel {
+                    watchChannels[item.calendarID] = channel
                 }
             }
         }
 
         var isEqual = true
-        for (calendarId, _) in watchResponses {
-            if self.watchResponses[calendarId] == nil  {
+        for (calendarId, _) in watchChannels {
+            if self.watchChannels[calendarId] == nil  {
                 isEqual = false
             }
         }
         if !isEqual {
-            // store watch responses
-            print("Storing watch responses at:", self.watchResponsesFileUrl)
-            let encodedWatchResponses = try JSONEncoder().encode(watchResponses)
+            // store watch channels
+            print("Storing watch channels at:", self.watchChannelsFileUrl)
+            let encodedWatchChannels = try JSONEncoder().encode(watchChannels)
             let fileManager = FileManager.default
-            if fileManager.fileExists(atPath: self.watchResponsesFileUrl.path) {
-                try encodedWatchResponses.write(to: self.watchResponsesFileUrl)
+            if fileManager.fileExists(atPath: self.watchChannelsFileUrl.path) {
+                try encodedWatchChannels.write(to: self.watchChannelsFileUrl)
             } else {
                 try fileManager.createDirectory(
-                    at: self.watchResponsesFileUrl.deletingLastPathComponent(),
+                    at: self.watchChannelsFileUrl.deletingLastPathComponent(),
                     withIntermediateDirectories: true,
                 )
-                _ = fileManager.createFile(atPath: self.watchResponsesFileUrl.path, contents: encodedWatchResponses)
+                _ = fileManager.createFile(atPath: self.watchChannelsFileUrl.path, contents: encodedWatchChannels)
             }
         }
     }
@@ -272,7 +272,7 @@ actor GoogleCalendarProvider {
         calendarID: String, 
         accessToken: String,
         ngrokCredentials: NgrokCredentials,
-    ) async throws -> (calendarID: String, response: CalendarWatchResponse?) {
+    ) async throws -> (calendarID: String, channel: CalendarWatchChannel?) {
         print("Watch ", calendarID)
         var request = URLRequest(url: URL(string: "https://www.googleapis.com/calendar/v3/calendars/\(calendarID)/events/watch")!)
         request.httpMethod = "POST"
@@ -297,7 +297,7 @@ actor GoogleCalendarProvider {
 
         return (
             calendarID: calendarID, 
-            response: try JSONDecoder().decode(CalendarWatchResponse.self, from: responseBody)
+            channel: try JSONDecoder().decode(CalendarWatchChannel.self, from: responseBody)
         )
     }
 
@@ -308,20 +308,24 @@ actor GoogleCalendarProvider {
         }
 
         await withThrowingTaskGroup { group in
-            for (_, watchResponse) in self.watchResponses {
+            for (_, watchChannel) in self.watchChannels {
                 group.addTask {
                     try await self.stopWatching(
-                        id: watchResponse.id, 
-                        resourceId: watchResponse.resourceId, 
+                        id: watchChannel.id, 
+                        resourceId: watchChannel.resourceId, 
                         accessToken: unwrappedAccessToken.accessToken
                     )
                 }
             }
         }
 
-        // store watch responses
-        print("Remove watch responses at:", self.watchResponsesFileUrl)
-        try FileManager.default.removeItem(at: self.watchResponsesFileUrl)
+        self.watchChannels = [:];
+
+        // remove watch channels file
+        if FileManager.default.fileExists(atPath: self.watchChannelsFileUrl.path) {
+            print("Remove watch channels at:", self.watchChannelsFileUrl)
+            try FileManager.default.removeItem(at: self.watchChannelsFileUrl)
+        }
     }
 
     private func stopWatching(id: String, resourceId: String, accessToken: String) async throws {
@@ -340,6 +344,26 @@ actor GoogleCalendarProvider {
             (200...299).contains(response.statusCode)
         else {
             throw URLError(.badServerResponse)
+        }
+    }
+
+    func checkWatchChannelsExpiration(ngrokCredentials: NgrokCredentials) async throws {
+        let now = Date()
+        let oneHourAgo = Calendar.current.date(byAdding: .hour, value: -1, to: now)!
+        var someIsAlmostExpired = false
+        
+        for (_, channel) in self.watchChannels {
+            if let channelExpiration = Double(channel.expiration),
+                Date(timeIntervalSince1970: channelExpiration) > oneHourAgo
+            {
+                someIsAlmostExpired = true
+                break
+            }
+        }
+
+        if (someIsAlmostExpired) {
+            try await self.stopWatching()
+            try await self.watch(ngrokCredentials: ngrokCredentials)
         }
     }
 }

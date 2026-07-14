@@ -30,7 +30,7 @@ struct CalendarWatchPayload: Codable {
     }
 }
 
-struct CalendarWatchResponse: Codable {
+struct CalendarWatchChannel: Codable {
   let id: String
   let kind: String
   let resourceId: String

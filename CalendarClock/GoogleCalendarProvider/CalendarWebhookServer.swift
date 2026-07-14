@@ -7,9 +7,13 @@ final class CalendarWebhookServer {
     private var channel: Channel?
     private let port: Int
     private let ngrokCredentials: NgrokCredentials
-    private let onChannelIdReceived: (String) async throws -> Void
+    private let onChannelIdReceived: @Sendable (String) async throws -> Void
 
-    init(port: Int, ngrokCredentials: NgrokCredentials, onChannelIdReceived: @escaping (String) async throws -> Void) {
+    init(
+        port: Int, 
+        ngrokCredentials: NgrokCredentials, 
+        onChannelIdReceived: @escaping @Sendable (String) async throws -> Void
+    ) {
         self.port = port
         self.ngrokCredentials = ngrokCredentials
         self.onChannelIdReceived = onChannelIdReceived
@@ -18,11 +22,11 @@ final class CalendarWebhookServer {
     func start() throws {
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-            .childChannelInitializer { channel in
+            .childChannelInitializer { [ngrokCredentials = self.ngrokCredentials, onMatch = self.onChannelIdReceived] channel in
                 channel.pipeline.configureHTTPServerPipeline().flatMap {
                     channel.pipeline.addHandler(WebhookHandler(
-                        ngrokCredentials: self.ngrokCredentials,
-                        onMatch: self.onChannelIdReceived
+                        ngrokCredentials: ngrokCredentials,
+                        onMatch: onMatch
                     ))
                 }
             }
@@ -37,14 +41,14 @@ final class CalendarWebhookServer {
 }
 
 // MARK: - HTTP Handler
-private final class WebhookHandler: ChannelInboundHandler {
+private final class WebhookHandler: ChannelInboundHandler, Sendable {
     typealias InboundIn = HTTPServerRequestPart
     typealias OutboundOut = HTTPServerResponsePart
 
     let ngrokCredentials: NgrokCredentials
-    let onMatch: (String) async throws -> Void
+    let onMatch: @Sendable (String) async throws -> Void
 
-    init(ngrokCredentials: NgrokCredentials, onMatch: @escaping (String) async throws -> Void) {
+    init(ngrokCredentials: NgrokCredentials, onMatch: @escaping @Sendable (String) async throws -> Void) {
         self.ngrokCredentials = ngrokCredentials
         self.onMatch = onMatch
     }
@@ -88,7 +92,11 @@ private final class WebhookHandler: ChannelInboundHandler {
 
             if user == self.ngrokCredentials.user && password == self.ngrokCredentials.password {
                 Task {
-                    try await onMatch(channelId)
+                    do {
+                        try await onMatch(channelId)
+                    } catch {
+                        print("Webhook processing failed: \(error)")
+                    }
                 }
             }
 

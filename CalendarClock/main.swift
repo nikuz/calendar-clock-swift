@@ -2,26 +2,13 @@ import Foundation
 import CRayLib
 
 let appState = AppState()
+let calendarService = CalendarService()
 
-let calendarBackgroundTask = Task.detached(priority: .background) { [appState] in
+let calendarBackgroundTask = Task.detached {
     do {
-        let ngrokCredentials = try await NgrokCredentials()
-        let calendarProvider = try GoogleCalendarProvider()
-        let loadedEvents = try await calendarProvider.fetchEvents()
-        appState.update { $0.calendar = .loaded(loadedEvents) }
-
-        let server = CalendarWebhookServer(port: 8080, ngrokCredentials: ngrokCredentials) { channelId in
-            print("Received Google Channel ID: \(channelId)")
-            let loadedEvents = try await calendarProvider.fetchEvents()
-            appState.update { $0.calendar = .loaded(loadedEvents) }
-        }
-
-        try server.start()
-
-        // try await calendarProvider.watch(ngrokCredentials: ngrokCredentials)
-        // try await calendarProvider.stopWatching()
+        try await calendarService.start(appState: appState)
     } catch {
-        print(error)
+        print("Calendar setup failed: \(error)")
         appState.update { $0.calendar = .failed(error) }
     }
 }
@@ -29,9 +16,9 @@ let calendarBackgroundTask = Task.detached(priority: .background) { [appState] i
 // Task.detached(priority: .background) {
 //     do {
 //         let brightnessProvider = try BrightnessProvider()
-//         try await brightnessProvider.initContinuousHighResMode();
+//         try await brightnessProvider.initContinuousHighResMode()
 //         while true {
-//             let brightness = try await brightnessProvider.readLux();
+//             let brightness = try await brightnessProvider.readLux()
 //             print(brightness)
 //             await MainActor.run {
 //                 appState.brightness = brightness
@@ -102,5 +89,7 @@ while !WindowShouldClose() && !KEY_Q.isPressed {
     EndDrawing()
 }
 
-calendarBackgroundTask.cancel();
+calendarBackgroundTask.cancel()
+await calendarService.stop()
+
 CloseWindow()
