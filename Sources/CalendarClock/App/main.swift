@@ -13,22 +13,10 @@ let calendarBackgroundTask = Task.detached {
     }
 }
 
-// Task.detached(priority: .background) {
-//     do {
-//         let brightnessProvider = try BrightnessProvider()
-//         try await brightnessProvider.initContinuousHighResMode()
-//         while true {
-//             let brightness = try await brightnessProvider.readLux()
-//             print(brightness)
-//             await MainActor.run {
-//                 appState.brightness = brightness
-//             }
-//             try await Task.sleep(for: .seconds(5))
-//         }
-//     } catch {
-//         print("Brightness sensor unavailable: \(error)")
-//     }
-// }
+let brightnessBackgroundTask = Task.detached {
+    let provider = BrightnessProvider(address: .low, mode: .continuousHighRes)
+    provider.startPrintingLoop(interval: 1.0)
+}
 
 let configFlags = FLAG_WINDOW_UNDECORATED.rawValue | FLAG_WINDOW_RESIZABLE.rawValue
 SetConfigFlags(configFlags)
@@ -83,13 +71,15 @@ while !WindowShouldClose() && !KEY_Q.isPressed {
 
     if buttonClicked != 0 {
         print("Button was clicked!")
-        appState.update{ $0.calendar = .loaded([]) }
+        appState.update { $0.calendar = .loaded([]) }
     }
 
     EndDrawing()
 }
 
+// cleanup
 calendarBackgroundTask.cancel()
 await calendarService.stop()
+brightnessBackgroundTask.cancel()
 
 CloseWindow()

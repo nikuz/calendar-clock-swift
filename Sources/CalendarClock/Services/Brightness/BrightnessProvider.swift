@@ -1,74 +1,223 @@
-// import Foundation
-// import SwiftyGPIO
+#if os(Linux)
+    import Glibc
+#else
+    import Darwin
+#endif
+import Foundation
 
-// private let RASPBERRY_BOARD = SupportedBoard.RaspberryPi3
-// private let I2C_BUS = 1  // Your I2C bus number (e.g., 1 for Raspberry Pi)
-// private let SENSOR_ADDR = 0x23  // Default BH1750 address
+/// Reads ambient light level from a BH1750 sensor over I2C on Raspberry Pi.
+///
+/// Wiring (I2C1 on the 40-pin header):
+///   VCC  -> 3.3V (pin 1)
+///   GND  -> GND (pin 6)
+///   SCL  -> SCL1 (pin 5, GPIO3)
+///   SDA  -> SDA1 (pin 3, GPIO2)
+///   ADDR -> GND for address 0x23, or 3.3V for address 0x5C
+///
+/// Make sure I2C is enabled (`sudo raspi-config` -> Interface Options -> I2C)
+/// and that `/dev/i2c-1` is readable by the running user (or run with sudo).
+///
+/// This class only talks to real I2C hardware on Linux. On other platforms
+/// (e.g. macOS during development) every operation fails fast with
+/// `.deviceUnavailable` instead of trying to call Linux-only APIs.
+final class BrightnessProvider {
 
-// // BH1750 Commands
-// private let POWER_ON: UInt8 = 0x01
-// private let POWER_OFF: UInt8 = 0x00
-// private let ONE_TIME_HIGH_RES: UInt8 = 0x20
-// private let CONTINUOUS_HIGH_RES: UInt8 = 0x10
+    enum BrightnessError: Error, CustomStringConvertible {
+        case deviceUnavailable
+        case deviceOpenFailed(String)
+        case ioctlFailed(String)
+        case writeFailed(String)
+        case readFailed(String)
 
-// // Measurement time for High-Res modes (max typical)
-// // Datasheet says 180ms max, add a small buffer.
-// private let MEASUREMENT_TIME_MAX_S = 0.2 // seconds (200ms)
+        var description: String {
+            switch self {
+            case .deviceUnavailable: return "I2C device is not available on this platform"
+            case .deviceOpenFailed(let path): return "Failed to open I2C device at \(path)"
+            case .ioctlFailed(let msg): return "ioctl failed: \(msg)"
+            case .writeFailed(let msg): return "Write to sensor failed: \(msg)"
+            case .readFailed(let msg): return "Read from sensor failed: \(msg)"
+            }
+        }
+    }
 
-// private enum BrightnessError: Error {
-//     case deviceUnavailable
-//     case i2cUnavailable
-//     case deviceNotReachable
-//     case readFailed
-// }
+    /// Common BH1750 addresses: 0x23 (ADDR pin low/floating) or 0x5C (ADDR pin high).
+    enum Address: UInt8 {
+        case low = 0x23
+        case high = 0x5C
+    }
 
-// actor BrightnessProvider {
-//     let bus: I2CInterface
+    /// BH1750 operating modes. "H-Resolution" modes give 1 lx resolution.
+    /// Continuous modes keep measuring; One-Time modes power down after one read.
+    enum Mode: UInt8 {
+        case continuousHighRes = 0x10  // 1 lx resolution, ~120ms
+        case continuousHighRes2 = 0x11  // 0.5 lx resolution, ~120ms
+        case continuousLowRes = 0x13  // 4 lx resolution, ~16ms
+        case oneTimeHighRes = 0x20
+        case oneTimeHighRes2 = 0x21
+        case oneTimeLowRes = 0x23
+    }
 
-//     init() throws {
-//         let devicePath = "/dev/i2c-\(I2C_BUS)"
-//         guard FileManager.default.fileExists(atPath: devicePath) else {
-//             throw BrightnessError.deviceUnavailable
-//         }
+    private static let I2C_SLAVE: UInt = 0x0703
 
-//         guard let i2cs = SwiftyGPIO.hardwareI2Cs(for: RASPBERRY_BOARD), I2C_BUS < i2cs.count else {
-//             throw BrightnessError.i2cUnavailable
-//         }
+    private let devicePath: String
+    private let address: Address
+    private let mode: Mode
+    private var fileDescriptor: Int32 = -1
 
-//         self.bus = i2cs[I2C_BUS]
+    init(devicePath: String = "/dev/i2c-1", address: Address = .low, mode: Mode = .continuousHighRes) {
+        self.devicePath = devicePath
+        self.address = address
+        self.mode = mode
+    }
 
-//         guard bus.isReachable(SENSOR_ADDR) else {
-//             throw BrightnessError.deviceNotReachable
-//         }
-//     }
+    deinit {
+        close()
+    }
 
-//     deinit {
-//         bus.writeByte(SENSOR_ADDR, value: POWER_OFF)
-//     }
+    /// Opens the I2C bus device and selects the sensor's slave address.
+    ///
+    /// Fails immediately with `.deviceUnavailable` if the bus device doesn't
+    /// exist (always true on non-Linux platforms, and possible on Linux too
+    /// if I2C isn't enabled).
+    func open() throws {
+        guard FileManager.default.fileExists(atPath: devicePath) else {
+            throw BrightnessError.deviceUnavailable
+        }
 
-//     func initContinuousHighResMode() async throws {
-//         bus.writeByte(SENSOR_ADDR, value: POWER_ON)
-//         try await Task.sleep(for: .seconds(0.01))
+        #if os(Linux)
+            let fd = Glibc.open(devicePath, O_RDWR)
+            guard fd >= 0 else {
+                let reason = String(cString: strerror(errno))
+                throw BrightnessError.deviceOpenFailed("\(devicePath): \(reason)")
+            }
+            fileDescriptor = fd
 
-//         bus.writeByte(SENSOR_ADDR, value: CONTINUOUS_HIGH_RES)
-//         // Measurement time for High-Res modes (max typical)
-//         // Datasheet says 180ms max, add a small buffer.
-//         try await Task.sleep(for: .seconds(0.2))
-//     }
+            // Third argument must be a fixed-width Int32/CInt, not UInt — Swift's
+            // Glibc overlay only provides a non-variadic ioctl overload for CInt
+            // (and a couple of pointer variants). Passing UInt doesn't match any
+            // overload, which is what produces the "variadic function is
+            // unavailable" compile error.
+            let result = ioctl(fd, Self.I2C_SLAVE, Int32(address.rawValue))
+            guard result >= 0 else {
+                close()
+                throw BrightnessError.ioctlFailed(String(cString: strerror(errno)))
+            }
+        #else
+            // Should be unreachable in practice (fileExists check above already
+            // filters this out on macOS), but keep it explicit and safe.
+            throw BrightnessError.deviceUnavailable
+        #endif
+    }
 
-//     func readLux() async throws -> Double {
-//         let data = bus.readI2CData(SENSOR_ADDR, command: 0x00)
-//         guard data.count == 2 else {
-//             throw BrightnessError.readFailed
-//         }
+    /// Closes the underlying file descriptor if open.
+    func close() {
+        #if os(Linux)
+            if fileDescriptor >= 0 {
+                Glibc.close(fileDescriptor)
+                fileDescriptor = -1
+            }
+        #endif
+    }
 
-//         // let data = bus.readData(SENSOR_ADDR, command: 0x00)
-//         // let rawValue = (data[0] << 8) | data[1]
-//         let rawValue = (UInt16(data[0]) << 8) | UInt16(data[1])
+    /// Sends the configured measurement mode command to the sensor.
+    private func writeMode() throws {
+        #if os(Linux)
+            var command = mode.rawValue
+            let bytesWritten = write(fileDescriptor, &command, 1)
+            guard bytesWritten == 1 else {
+                throw BrightnessError.writeFailed(String(cString: strerror(errno)))
+            }
+        #else
+            throw BrightnessError.deviceUnavailable
+        #endif
+    }
 
-//         print(rawValue)
+    /// Reads a single raw 16-bit measurement (2 bytes, big-endian) from the sensor.
+    private func readRawValue() throws -> UInt16 {
+        #if os(Linux)
+            var buffer = [UInt8](repeating: 0, count: 2)
+            let bytesRead = buffer.withUnsafeMutableBytes { ptr -> Int in
+                read(fileDescriptor, ptr.baseAddress, 2)
+            }
+            guard bytesRead == 2 else {
+                throw BrightnessError.readFailed(String(cString: strerror(errno)))
+            }
+            return (UInt16(buffer[0]) << 8) | UInt16(buffer[1])
+        #else
+            throw BrightnessError.deviceUnavailable
+        #endif
+    }
 
-//         // Per BH1750 datasheet, divide raw count by 1.2 to get lux.
-//         return Double(rawValue) / 1.2
-//     }
-// }
+    /// Takes a single lux reading. Opens the device if it isn't already open.
+    ///
+    /// - Returns: Ambient light level in lux.
+    func readLux() throws -> Double {
+        if fileDescriptor < 0 {
+            try open()
+        }
+
+        try writeMode()
+
+        // Datasheet: allow the sensor time to complete the measurement before
+        // reading it back. High-res modes need up to ~180ms; low-res ~24ms.
+        let delayMicroseconds: UInt32
+        switch mode {
+        case .continuousHighRes, .continuousHighRes2, .oneTimeHighRes, .oneTimeHighRes2:
+            delayMicroseconds = 180_000
+        case .continuousLowRes, .oneTimeLowRes:
+            delayMicroseconds = 24_000
+        }
+        usleep(delayMicroseconds)
+
+        let raw = try readRawValue()
+        // Per BH1750 datasheet, divide raw count by 1.2 to get lux
+        // (double the divisor to 2.4 when using an *H2* high-res mode).
+        let divisor: Double = (mode == .continuousHighRes2 || mode == .oneTimeHighRes2) ? 2.4 : 1.2
+        return Double(raw) / divisor
+    }
+
+    /// Reads the current brightness and prints it to stdout.
+    func printReading() {
+        do {
+            let lux = try readLux()
+            print(String(format: "Brightness: %.1f lx", lux))
+        } catch {
+            print("Error reading brightness: \(error)")
+        }
+    }
+
+    /// Continuously reads and prints brightness at the given interval.
+    /// Runs until the process is terminated (e.g. Ctrl+C).
+    ///
+    /// Blocking — only call this from a dedicated `Thread`, not from a
+    /// `Task`/`Task.detached`, since it never suspends and will permanently
+    /// occupy one of Swift concurrency's limited worker threads. Prefer
+    /// `startPrintingLoop(interval:)` (the async version below) inside Tasks.
+    ///
+    /// - Parameter interval: Seconds between readings.
+    func startPrintingLoop(interval: TimeInterval = 1.0) {
+        while true {
+            printReading()
+            usleep(UInt32(interval * 1_000_000))
+        }
+    }
+
+    /// Async, cancellation-aware version of `startPrintingLoop`.
+    ///
+    /// Safe to run from a `Task`/`Task.detached`: it suspends between
+    /// readings instead of blocking a thread, and stops promptly when the
+    /// enclosing task is cancelled.
+    ///
+    /// - Parameter interval: Seconds between readings.
+    func startPrintingLoop(interval: TimeInterval = 1.0) async {
+        while !Task.isCancelled {
+            printReading()
+            try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+        }
+    }
+}
+
+// Example usage:
+//
+// let provider = BrightnessProvider(address: .low, mode: .continuousHighRes)
+// provider.startPrintingLoop(interval: 1.0)

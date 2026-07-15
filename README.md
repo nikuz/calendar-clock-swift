@@ -120,6 +120,17 @@ dietpi-config
 ```
 Select `Advances Options`, and make sure the `I2C state` is `[On]`.
 
+### Install missing dependencies
+```bash
+sudo apt-get install -y libdrm-dev libgbm-dev libgles2-mesa-dev libegl-dev
+```
+
+### Add current user to missing groups
+```bash
+sudo usermod -aG video,render,i2c $USER
+sudo reboot
+```
+
 ### Set timezone
 ```bash
 dietpi-config
@@ -148,16 +159,6 @@ Select `Language/Regional Options`, and set appropriate `Timezone`
     ```
 
 ### APP run
-1. Install missing dependencies
-    ```bash
-    sudo apt-get install -y libdrm-dev libgbm-dev libgles2-mesa-dev libegl-dev
-    ```
-2. Add current user to `video` and `render` groups
-    ```bash
-    sudo usermod -a -G video,render $USER
-    sudo reboot
-    ```
-3. Run
-    ```bash
-    .build/aarch64-unknown-linux-gnu/release/CalendarClock
-    ```
+```bash
+.build/aarch64-unknown-linux-gnu/release/CalendarClock
+```
