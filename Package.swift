@@ -22,7 +22,6 @@ let package = Package(
         // The C module that wraps raylib
         .target(
             name: "CRayLib",
-            path: "CRayLib"
         ),
         // Your Swift executable
         .executableTarget(
@@ -34,7 +33,6 @@ let package = Package(
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ],
-            path: "CalendarClock",
             linkerSettings: [
                 .unsafeFlags(["-L\(rayLibPath)", "-lraylib"]),
                 
@@ -54,6 +52,10 @@ let package = Package(
                 .linkedLibrary("dl",            .when(platforms: [.linux])),
                 .linkedLibrary("rt",            .when(platforms: [.linux])),
             ]
+        ),
+        .testTarget(
+            name: "CalendarClockTests",
+            dependencies: ["CalendarClock"]
         ),
     ],
     swiftLanguageModes: [.v6]

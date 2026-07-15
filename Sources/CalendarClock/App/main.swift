@@ -2,7 +2,7 @@ import Foundation
 import CRayLib
 
 let appState = AppState()
-let calendarService = CalendarService()
+let calendarService = GoogleCalendarService()
 
 let calendarBackgroundTask = Task.detached {
     do {

@@ -1,13 +1,13 @@
 import Foundation
 import CRayLib
 
-actor CalendarService {
+actor GoogleCalendarService {
     var webhookServer: CalendarWebhookServer?
     private var pollingTask: Task<Void, Error>?
     
     func start(appState: AppState) async throws {
         let ngrokCredentials = try await NgrokCredentials()
-        let calendarProvider = try GoogleCalendarProvider()
+        let calendarProvider = try GoogleCalendarAPIClient()
         
         // Initial fetch
         let loadedEvents = try await calendarProvider.fetchEvents()
@@ -39,7 +39,7 @@ actor CalendarService {
         self.startPolling(provider: calendarProvider, credentials: ngrokCredentials)
     }
     
-    private func startPolling(provider: GoogleCalendarProvider, credentials: NgrokCredentials) {
+    private func startPolling(provider: GoogleCalendarAPIClient, credentials: NgrokCredentials) {
         pollingTask = Task {
             while !Task.isCancelled {
                 try await provider.checkWatchChannelsExpiration(ngrokCredentials: credentials)

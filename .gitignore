@@ -5,3 +5,4 @@ config/calendar-ids.json
 config/ngrok-credentials.json
 temp
 *.tar.gz
+*.DS_Store

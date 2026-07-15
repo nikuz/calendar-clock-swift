@@ -10,7 +10,7 @@ private let calendarsFilePath = "config/calendar-ids.json"
 private let authTokenFilePath = "temp/auth-token.json"
 private let watchChannelsFilePath = "temp/watch-channels.json"
 
-private enum GoogleCalendarProviderError: Error {
+private enum GoogleCalendarAPIClientError: Error {
     case configFileNotFound
     case configFileCantRead
     case calendarsFileNotFound
@@ -18,7 +18,7 @@ private enum GoogleCalendarProviderError: Error {
     case cantGetAccessToken
 }
 
-actor GoogleCalendarProvider {
+actor GoogleCalendarAPIClient {
     private let headers: JWTHeaders
     private let serviceAccountConfig: ServiceAccountConfig
     private let calendarIDs: [String]
@@ -31,14 +31,14 @@ actor GoogleCalendarProvider {
         let fileManager = FileManager.default
         let serviceAccountFileUrl = URL(fileURLWithPath: serviceAccountFilePath)
         guard fileManager.fileExists(atPath: serviceAccountFileUrl.path) else {
-            throw GoogleCalendarProviderError.configFileNotFound
+            throw GoogleCalendarAPIClientError.configFileNotFound
         }
 
         let serviceAccountFileContent: String
         do {
             serviceAccountFileContent = try String(contentsOf: serviceAccountFileUrl, encoding: .utf8)
         } catch {
-            throw GoogleCalendarProviderError.configFileCantRead
+            throw GoogleCalendarAPIClientError.configFileCantRead
         }
         let serviceAccountJsonData = serviceAccountFileContent.data(using: .utf8)!
 
@@ -50,7 +50,7 @@ actor GoogleCalendarProvider {
 
         let calendarsUrls = URL(fileURLWithPath: calendarsFilePath)
         guard fileManager.fileExists(atPath: calendarsUrls.path) else {
-            throw GoogleCalendarProviderError.calendarsFileNotFound
+            throw GoogleCalendarAPIClientError.calendarsFileNotFound
         }
         let calendarsUrlsJsonData = try Data(contentsOf: calendarsUrls)
         self.calendarIDs = try JSONDecoder().decode([String].self, from: calendarsUrlsJsonData)
@@ -210,7 +210,7 @@ actor GoogleCalendarProvider {
         guard let httpResponse = response as? HTTPURLResponse,
             (200..<300).contains(httpResponse.statusCode)
         else {
-            throw GoogleCalendarProviderError.calendarInvalidResponse
+            throw GoogleCalendarAPIClientError.calendarInvalidResponse
         }
 
         let decoded = try JSONDecoder().decode(CalendarEventsResponse.self, from: data)
@@ -220,7 +220,7 @@ actor GoogleCalendarProvider {
     func watch(ngrokCredentials: NgrokCredentials) async throws {
         let accessToken = try await self.getAccessToken()
         guard let unwrappedAccessToken = accessToken else {
-            throw GoogleCalendarProviderError.cantGetAccessToken
+            throw GoogleCalendarAPIClientError.cantGetAccessToken
         }
 
         var watchChannels: [String: CalendarWatchChannel] = [:]
@@ -304,7 +304,7 @@ actor GoogleCalendarProvider {
     func stopWatching() async throws {
         let accessToken = try await self.getAccessToken()
         guard let unwrappedAccessToken = accessToken else {
-            throw GoogleCalendarProviderError.cantGetAccessToken
+            throw GoogleCalendarAPIClientError.cantGetAccessToken
         }
 
         await withThrowingTaskGroup { group in
