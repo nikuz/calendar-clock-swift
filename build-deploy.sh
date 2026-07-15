@@ -74,9 +74,9 @@ eval "$(ssh-agent)"
 ssh-add "$SSH_KEY"
 
 # build
-swift build -c release --static-swift-stdlib
-
-# copy
-echo "Uploading ..."
-ssh "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p ${REMOTE_FULL_PATH}"
-scp ".build/aarch64-unknown-linux-gnu/release/${BINARY_NAME}" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_FULL_PATH}"
+if swift build -c release --static-swift-stdlib; then
+    # Only copy if the build command returned an exit code of 0
+    echo "Uploading ..."
+    ssh "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p ${REMOTE_FULL_PATH}"
+    scp ".build/aarch64-unknown-linux-gnu/release/${BINARY_NAME}" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_FULL_PATH}"
+fi
