@@ -120,6 +120,12 @@ dietpi-config
 ```
 Select `Advances Options`, and make sure the `I2C state` is `[On]`.
 
+### Set timezone
+```bash
+dietpi-config
+```
+Select `Language/Regional Options`, and set appropriate `Timezone`
+
 ### Add Docker container SSH key to authorized_keys on the Raspberry PI board
 
 ### Install and setup ngrok
