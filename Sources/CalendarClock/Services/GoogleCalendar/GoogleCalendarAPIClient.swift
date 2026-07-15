@@ -91,7 +91,7 @@ actor GoogleCalendarAPIClient {
             iss: self.serviceAccountConfig.clientEmail,
             aud: self.serviceAccountConfig.tokenUri,
             scope: "https://www.googleapis.com/auth/calendar.readonly",
-            exp: now + 3600, // valid for one hour
+            exp: now + 3600,  // valid for one hour
             iat: now
         )
 
@@ -119,7 +119,7 @@ actor GoogleCalendarAPIClient {
 
         do {
             let (responseBody, response) = try await URLSession.shared.upload(for: request, from: requestBody)
- 
+
             guard let response = response as? HTTPURLResponse,
                 (200...299).contains(response.statusCode)
             else {
@@ -229,7 +229,7 @@ actor GoogleCalendarAPIClient {
                 if self.watchChannels[calendarID] == nil {
                     group.addTask {
                         try await self.watch(
-                            calendarID: calendarID, 
+                            calendarID: calendarID,
                             accessToken: unwrappedAccessToken.accessToken,
                             ngrokCredentials: ngrokCredentials,
                         )
@@ -247,7 +247,7 @@ actor GoogleCalendarAPIClient {
 
         var isEqual = true
         for (calendarId, _) in watchChannels {
-            if self.watchChannels[calendarId] == nil  {
+            if self.watchChannels[calendarId] == nil {
                 isEqual = false
             }
         }
@@ -269,7 +269,7 @@ actor GoogleCalendarAPIClient {
     }
 
     private func watch(
-        calendarID: String, 
+        calendarID: String,
         accessToken: String,
         ngrokCredentials: NgrokCredentials,
     ) async throws -> (calendarID: String, channel: CalendarWatchChannel?) {
@@ -280,7 +280,7 @@ actor GoogleCalendarAPIClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let payload = CalendarWatchPayload(
-            id: UUID().uuidString, 
+            id: UUID().uuidString,
             address: ngrokCredentials.domainURL,
             user: ngrokCredentials.user,
             password: ngrokCredentials.password
@@ -296,7 +296,7 @@ actor GoogleCalendarAPIClient {
         }
 
         return (
-            calendarID: calendarID, 
+            calendarID: calendarID,
             channel: try JSONDecoder().decode(CalendarWatchChannel.self, from: responseBody)
         )
     }
@@ -311,8 +311,8 @@ actor GoogleCalendarAPIClient {
             for (_, watchChannel) in self.watchChannels {
                 group.addTask {
                     try await self.stopWatching(
-                        id: watchChannel.id, 
-                        resourceId: watchChannel.resourceId, 
+                        id: watchChannel.id,
+                        resourceId: watchChannel.resourceId,
                         accessToken: unwrappedAccessToken.accessToken
                     )
                 }
@@ -349,15 +349,17 @@ actor GoogleCalendarAPIClient {
 
     func checkWatchChannelsExpiration(ngrokCredentials: NgrokCredentials) async throws {
         let now = Date()
-        let oneHourAgo = Calendar.current.date(byAdding: .hour, value: -1, to: now)!
+        let oneHourAhead = Calendar.current.date(byAdding: .hour, value: 1, to: now)!
         var someIsAlmostExpired = false
-        
+
         for (_, channel) in self.watchChannels {
-            if let channelExpiration = Double(channel.expiration),
-                Date(timeIntervalSince1970: channelExpiration) > oneHourAgo
-            {
-                someIsAlmostExpired = true
-                break
+            if let expirationMS = Double(channel.expiration) {
+                let expirationDate = Date(timeIntervalSince1970: expirationMS / 1000.0)
+
+                if expirationDate < oneHourAhead {
+                    someIsAlmostExpired = true
+                    break
+                }
             }
         }
 
