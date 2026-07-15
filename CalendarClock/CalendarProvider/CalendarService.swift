@@ -13,8 +13,10 @@ actor CalendarService {
         let loadedEvents = try await calendarProvider.fetchEvents()
         appState.update { $0.calendar = .loaded(loadedEvents) }
 
+        #if !DEBUG
         try await calendarProvider.watch(ngrokCredentials: ngrokCredentials)
         // try await calendarProvider.stopWatching()
+        #endif
         
         // Setup Webhook Server
         let server = CalendarWebhookServer(port: 8080, ngrokCredentials: ngrokCredentials) { channelId in
