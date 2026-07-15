@@ -40,21 +40,36 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-REMOTE_BUILD_SUFFIX=".build/aarch64-unknown-linux-gnu/release"
-REMOTE_FULL_PATH="${REMOTE_BASE_PATH}/${REMOTE_BUILD_SUFFIX}"
+check_host_system() {
+    local host_os host_arch
 
-kill_ssh_agents() {
-    local agent_pids
-    agent_pids=$(pgrep -u "$(id -u)" ssh-agent)
+    host_os=$(uname -s)
+    host_arch=$(uname -m)
 
-    if [ -n "$agent_pids" ]; then
-        echo "Killing existing ssh-agent(s) with PID: $agent_pids"
-        kill $agent_pids
+    if [[ "$host_os" != "Linux" || ("$host_arch" != "aarch64" && "$host_arch" != "arm64") ]]; then
+        echo "Error: this script may only be run on arm Linux hosts."
+        echo "Detected: OS=$host_os ARCH=$host_arch"
+        exit 1
     fi
 }
 
-kill_ssh_agents
+check_host_system
 
+REMOTE_BUILD_SUFFIX=".build/aarch64-unknown-linux-gnu/release"
+REMOTE_FULL_PATH="${REMOTE_BASE_PATH}/${REMOTE_BUILD_SUFFIX}"
+
+# Clean up only the specific agent spawned by this script run
+cleanup_agent() {
+    if [ -n "$SSH_AGENT_PID" ]; then
+        echo "Cleaning up ssh-agent (PID: $SSH_AGENT_PID)..."
+        kill "$SSH_AGENT_PID" 2>/dev/null
+    fi
+}
+
+# Trap EXIT (which covers normal end of script, script failures, and Ctrl+C / SIGINT)
+trap cleanup_agent EXIT
+
+# Start the agent and capture its variables
 eval "$(ssh-agent)"
 ssh-add "$SSH_KEY"
 
@@ -65,5 +80,3 @@ swift build -c release --static-swift-stdlib
 echo "Uploading ..."
 ssh "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p ${REMOTE_FULL_PATH}"
 scp ".build/aarch64-unknown-linux-gnu/release/${BINARY_NAME}" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_FULL_PATH}"
-
-kill_ssh_agents
