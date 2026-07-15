@@ -1,4 +1,4 @@
-// swift-tools-version:5.9
+// swift-tools-version: 6.3
 import PackageDescription
 
 #if os(macOS)
@@ -55,5 +55,6 @@ let package = Package(
                 .linkedLibrary("rt",            .when(platforms: [.linux])),
             ]
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v6]
 )
