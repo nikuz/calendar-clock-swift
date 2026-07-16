@@ -21,7 +21,6 @@ import Foundation
 /// (e.g. macOS during development) every operation fails fast with
 /// `.deviceUnavailable` instead of trying to call Linux-only APIs.
 final class BrightnessProvider {
-
     enum BrightnessError: Error, CustomStringConvertible {
         case deviceUnavailable
         case deviceOpenFailed(String)
@@ -176,32 +175,6 @@ final class BrightnessProvider {
         return Double(raw) / divisor
     }
 
-    /// Reads the current brightness and prints it to stdout.
-    func printReading() {
-        do {
-            let lux = try readLux()
-            print(String(format: "Brightness: %.1f lx", lux))
-        } catch {
-            print("Error reading brightness: \(error)")
-        }
-    }
-
-    /// Continuously reads and prints brightness at the given interval.
-    /// Runs until the process is terminated (e.g. Ctrl+C).
-    ///
-    /// Blocking — only call this from a dedicated `Thread`, not from a
-    /// `Task`/`Task.detached`, since it never suspends and will permanently
-    /// occupy one of Swift concurrency's limited worker threads. Prefer
-    /// `startPrintingLoop(interval:)` (the async version below) inside Tasks.
-    ///
-    /// - Parameter interval: Seconds between readings.
-    func startPrintingLoop(interval: TimeInterval = 1.0) {
-        while true {
-            printReading()
-            usleep(UInt32(interval * 1_000_000))
-        }
-    }
-
     /// Async, cancellation-aware version of `startPrintingLoop`.
     ///
     /// Safe to run from a `Task`/`Task.detached`: it suspends between
@@ -209,15 +182,17 @@ final class BrightnessProvider {
     /// enclosing task is cancelled.
     ///
     /// - Parameter interval: Seconds between readings.
-    func startPrintingLoop(interval: TimeInterval = 1.0) async {
+    func startReadingLoop(
+        interval: TimeInterval = 1.0, 
+        onRead: @Sendable (_ luxValue: Double) async throws -> Void,
+    ) async {
         while !Task.isCancelled {
-            printReading()
+            do {
+                try await onRead(try readLux())
+            } catch {
+                print("Error reading brightness: \(error)")
+            }
             try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
         }
     }
 }
-
-// Example usage:
-//
-// let provider = BrightnessProvider(address: .low, mode: .continuousHighRes)
-// provider.startPrintingLoop(interval: 1.0)

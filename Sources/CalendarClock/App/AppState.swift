@@ -9,7 +9,11 @@ enum CalendarState: Sendable {
 
 struct StateData: Sendable {
     var calendar: CalendarState = .loading
-    var brightness: Double = 100
+    #if os(Linux)
+        var brightness: Double = 0
+    #else
+        var brightness: Double = 100
+    #endif
 }
 
 final class AppState: Sendable {

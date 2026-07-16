@@ -14,8 +14,11 @@ let calendarBackgroundTask = Task.detached {
 }
 
 let brightnessBackgroundTask = Task.detached {
-    let provider = BrightnessProvider(address: .low, mode: .continuousHighRes)
-    provider.startPrintingLoop(interval: 1.0)
+    let provider = BrightnessProvider(address: .low, mode: .continuousLowRes)
+    await provider.startReadingLoop(interval: 0.1) { luxValue in
+        print(luxValue)
+        appState.update { $0.brightness = luxValue }
+    }
 }
 
 let configFlags = FLAG_WINDOW_UNDECORATED.rawValue | FLAG_WINDOW_RESIZABLE.rawValue
@@ -44,15 +47,13 @@ while !WindowShouldClose() && !KEY_Q.isPressed {
         DrawText(loadingText, loadingX, y + 40, 18, COLOR_WHITE)
 
     case .loaded(let events):
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-
         for (index, event) in events.enumerated() {
             let summary = event.summary ?? "(untitled)"
             let dateString: String
             if let date = event.start.date {
-                dateString = formatter.string(from: date)
+                let hour = Calendar.current.component(.hour, from: date) 
+                let minute = Calendar.current.component(.minute, from: date) 
+                dateString = "\(hour):\(minute)"
             } else {
                 dateString = "unknown date"
             }
