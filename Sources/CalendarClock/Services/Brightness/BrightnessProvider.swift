@@ -63,10 +63,14 @@ final class BrightnessProvider {
     private let mode: Mode
     private var fileDescriptor: Int32 = -1
 
-    init(devicePath: String = "/dev/i2c-1", address: Address = .low, mode: Mode = .continuousHighRes) {
+    init(devicePath: String = "/dev/i2c-1", address: Address = .low, mode: Mode = .continuousHighRes) throws {
         self.devicePath = devicePath
         self.address = address
         self.mode = mode
+
+        guard FileManager.default.fileExists(atPath: devicePath) else {
+            throw BrightnessError.deviceUnavailable
+        }
     }
 
     deinit {

@@ -13,10 +13,15 @@ let calendarBackgroundTask = Task.detached {
 }
 
 let brightnessBackgroundTask = Task.detached {
-    let provider = BrightnessProvider(address: .low, mode: .continuousLowRes)
-    await provider.startReadingLoop(interval: 0.1) { luxValue in
-        print(luxValue)
-        appState.update { $0.brightness = luxValue }
+    do {
+        let provider = try BrightnessProvider(address: .low, mode: .continuousLowRes)
+        await provider.startReadingLoop(interval: 0.1) { luxValue in
+            if abs(appState.current.brightness - luxValue) > 1.0 {
+                appState.update { $0.brightness = luxValue }
+            }
+        }
+    } catch {
+        print("BrightnessProvider setup failed: \(error)")
     }
 }
 
