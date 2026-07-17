@@ -25,10 +25,21 @@ let brightnessBackgroundTask = Task.detached {
     }
 }
 
+let sigintSource = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
+signal(SIGINT, SIG_IGN)
+sigintSource.setEventHandler {
+    Task {
+        calendarBackgroundTask.cancel()
+        await calendarService.stop()
+        exit(0)
+    }
+}
+sigintSource.resume()
+
 let renderer = Renderer(appState: appState)
 renderer.start()
 
-// cleanup
+// normal cleanup
 calendarBackgroundTask.cancel()
 await calendarService.stop()
 brightnessBackgroundTask.cancel()

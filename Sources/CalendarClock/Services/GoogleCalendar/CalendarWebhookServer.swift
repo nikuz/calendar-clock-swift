@@ -36,6 +36,11 @@ final class CalendarWebhookServer {
     }
 
     func stop() {
+        do {
+            try channel?.close().wait()
+        } catch {
+            print("Error closing channel: \(error)")
+        }
         try? group.syncShutdownGracefully()
     }
 }

@@ -3,15 +3,19 @@ import CRayLib
 
 @MainActor
 struct CalendarView {
-    static func draw(appState: AppState) {
-        TimeComponent.draw()
+    static func draw(appState: AppState, fonts: [String: Font]) {
+        TimeComponent.draw(fonts: fonts)
+
+        guard let unscii8Font = fonts["unscii8"] else {
+            return
+        }
 
         switch appState.current.calendar {
         case .loading:
             let loadingText = "Loading events..."
-            let loadingTextWidth = MeasureText(loadingText, 18)
-            let loadingX = (SCREEN_WIDTH / 2) - (loadingTextWidth / 2)
-            DrawText(loadingText, loadingX, 40, 18, COLOR_WHITE)
+            let loadingTextWidth = MeasureTextEx(unscii8Font, loadingText, 18, 1)
+            let loadingX = (SCREEN_WIDTH / 2) - (loadingTextWidth.x / 2)
+            DrawTextEx(unscii8Font, loadingText, Vector2(x: loadingX, y: 40), 18, 1, .white)
 
         case .loaded(let events):
             for (index, event) in events.enumerated() {
@@ -25,14 +29,14 @@ struct CalendarView {
                     dateString = "unknown date"
                 }
                 let eventText = "\(summary) — \(dateString)"
-                DrawText(eventText, 20, Int32(80 + index * 20), 16, COLOR_WHITE)
+                DrawText(eventText, 20, Int32(80 + index * 20), 16, .white)
             }
 
         case .failed(let error):
             let errorText = "Failed to load events: \(error.localizedDescription)"
-            let errorTextWidth = MeasureText(errorText, 16)
-            let errorX = (SCREEN_WIDTH / 2) - (errorTextWidth / 2)
-            DrawText(errorText, errorX, 40, 16, COLOR_RED)
+            let errorTextWidth = MeasureTextEx(unscii8Font, errorText, 16, 1)
+            let errorX = (SCREEN_WIDTH / 2) - (errorTextWidth.x / 2)
+            DrawTextEx(unscii8Font, errorText, Vector2(x: errorX, y: 40), 16, 1, .white)
         }        
     }
 }
