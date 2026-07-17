@@ -4,6 +4,8 @@ import CRayLib
 @MainActor
 struct CalendarView {
     static func draw(appState: AppState) {
+        TimeComponent.draw()
+
         switch appState.current.calendar {
         case .loading:
             let loadingText = "Loading events..."
