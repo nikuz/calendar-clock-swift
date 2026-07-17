@@ -9,6 +9,7 @@ private let serviceAccountFilePath = "config/calendar-gcloud-service-account.jso
 private let calendarsFilePath = "config/calendar-ids.json"
 private let authTokenFilePath = "temp/auth-token.json"
 private let watchChannelsFilePath = "temp/watch-channels.json"
+private let IGNORE_EVENTS_SUMMARY = ["busy"]
 
 private enum GoogleCalendarAPIClientError: Error {
     case configFileNotFound
@@ -214,7 +215,32 @@ actor GoogleCalendarAPIClient {
         }
 
         let decoded = try JSONDecoder().decode(CalendarEventsResponse.self, from: data)
-        return decoded.items
+        return filterEvents(events: decoded.items)
+    }
+
+    private func filterEvents(events: [CalendarEvent]) -> [CalendarEvent] {
+        var uniqueEvents: [CalendarEvent] = []
+        var eventTags: Set<String> = []
+        let startOfToday = Calendar.current.startOfDay(for: Date())
+
+        for event in events {
+            // canceled event, all day events, and event duplicates
+            if event.status == .canceled || eventTags.contains(event.etag) || event.end.dateTime == nil {
+                continue
+            }
+            // outdated events
+            if let endDate = event.end.date, endDate < startOfToday {
+                continue
+            }
+            // events with ignored summary
+            if let summary = event.summary, IGNORE_EVENTS_SUMMARY.contains(summary.lowercased()) {
+                continue
+            }
+            eventTags.insert(event.etag)
+            uniqueEvents.append(event)
+        }
+
+        return uniqueEvents
     }
 
     func watch(ngrokCredentials: NgrokCredentials) async throws {
@@ -319,7 +345,7 @@ actor GoogleCalendarAPIClient {
             }
         }
 
-        self.watchChannels = [:];
+        self.watchChannels = [:]
 
         // remove watch channels file
         if FileManager.default.fileExists(atPath: self.watchChannelsFileUrl.path) {

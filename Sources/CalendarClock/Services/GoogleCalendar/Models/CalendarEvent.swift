@@ -11,6 +11,12 @@ struct CalendarEvent: Decodable, Identifiable, Sendable {
     let location: String?
     let start: EventDateTime
     let end: EventDateTime
+    let etag: String
+    let status: CalendarEventStatus
+
+    enum CalendarEventStatus: String, Decodable, Sendable {
+        case confirmed, tentative, canceled
+    }
 
     struct EventDateTime: Decodable {
         let dateOnly: String?
