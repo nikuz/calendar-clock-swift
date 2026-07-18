@@ -2,9 +2,9 @@
 import PackageDescription
 
 #if os(macOS)
-let rayLibPath = "libs/macos"
+    let rayLibPath = "libs/macos"
 #else
-let rayLibPath = "libs/linux-arm64"
+    let rayLibPath = "libs/linux-arm64"
 #endif
 
 let development = true

@@ -22,7 +22,7 @@ struct TimeComponent {
                 inMin: 0,
                 inMax: SCREEN_WIDTH,
                 outMin: 0,
-                outMax: 24 * 60,
+                outMax: 24 * 60 - 1,
             )
             let startOfToday = calendar.startOfDay(for: Date())
             now = Calendar.current.date(byAdding: .minute, value: Int(minuteUnderMouseCursor), to: startOfToday)!
@@ -37,7 +37,7 @@ struct TimeComponent {
             hour12hFormat -= 12
         }
 
-        let fontSize: Float = 50.0
+        let fontSize: Float = 48.0
         let hoursText = String(hour12hFormat)
         let hoursWidth = MeasureTextEx(unscii16Font, hoursText, fontSize, 1)
 
@@ -49,29 +49,17 @@ struct TimeComponent {
         let timeText = "\(hoursText)\(spacingText)\(minutesText)"
         let timeTextWidth = MeasureTextEx(unscii16Font, timeText, fontSize, 1)
         
-        var x: Float
+        var x = Utilities.remapValue(
+            value: Float(hour * 60 + minute),
+            inMin: DAY_START_TIME,
+            inMax: DAY_END_TIME,
+            outMin: 0,
+            outMax: SCREEN_WIDTH,
+        )
 
-        if followingMouse {
-            x = Utilities.remapValue(
-                value: mousePosition.x,
-                inMin: 0,
-                inMax: SCREEN_WIDTH,
-                outMin: 0,
-                outMax: SCREEN_WIDTH,
-            )
-        } else {
-            x = 0.0
-            x = Utilities.remapValue(
-                value: Float(hour * 60 + minute),
-                inMin: 0,
-                inMax: 24 * 60, // minutes per day
-                outMin: 0,
-                outMax: SCREEN_WIDTH,
-            )
-        }
-
-        x = max(x - (timeTextWidth.x / 2), 0)
+        x = max(x - hoursWidth.x, 0)
         x = min(x, SCREEN_WIDTH - timeTextWidth.x)
+        x = x.rounded(.towardZero)
 
         let lineX = x + hoursWidth.x + spacingWidth.x / 2
         DrawLineV(Vector2(x: lineX, y: 0), Vector2(x: lineX, y: CONTENT_HEIGHT), .yellow)
