@@ -17,15 +17,15 @@ struct CalendarTimeComponent {
         let fontSize: Float = isNightTime ? 80.0 : 48.0
         let color: Color = ColorBrightness(isNightTime ? .red : .white, appState.brightness.factor)
         let hoursText = String(hour12hFormat)
-        let hoursWidth = MeasureTextEx(unscii16Font, hoursText, fontSize, 0)
+        let hoursSize = MeasureTextEx(unscii16Font, hoursText, fontSize, 0)
 
         let spacingText = " "
-        let spacingWidth = MeasureTextEx(unscii16Font, spacingText, fontSize, 0)
+        let spacingSize = MeasureTextEx(unscii16Font, spacingText, fontSize, 0)
 
         let minutesText = String(format: "%02d", minute)
 
         let timeText = "\(hoursText)\(spacingText)\(minutesText)"
-        let timeTextWidth = MeasureTextEx(unscii16Font, timeText, fontSize, 0)
+        let timeTextSize = MeasureTextEx(unscii16Font, timeText, fontSize, 0)
         
         var x = Utilities.remapValue(
             value: Float(hour * 60 + minute),
@@ -34,13 +34,14 @@ struct CalendarTimeComponent {
             outMin: 0,
             outMax: SCREEN_WIDTH,
         )
-
-        x = max(x - hoursWidth.x, 0)
-        x = min(x, SCREEN_WIDTH - timeTextWidth.x)
+        x = max(x - hoursSize.x, 0)
+        x = min(x, SCREEN_WIDTH - timeTextSize.x)
         x = x.rounded(.towardZero)
 
-        let lineX = x + hoursWidth.x + spacingWidth.x / 2
+        let y: Float = isNightTime ? CONTENT_HEIGHT / 2 - timeTextSize.y / 2 : 5.0
+        let lineX = x + hoursSize.x + spacingSize.x / 2
+
         DrawLineV(Vector2(x: lineX, y: 0), Vector2(x: lineX, y: CONTENT_HEIGHT), color)
-        DrawTextEx(unscii16Font, timeText, Vector2(x: x, y: 10), fontSize, 0, color)
+        DrawTextEx(unscii16Font, timeText, Vector2(x: x, y: y), fontSize, 0, color)
     }
 }

@@ -14,7 +14,7 @@ let calendarBackgroundTask = Task.detached {
 
 let brightnessBackgroundTask = Task.detached {
     do {
-        let provider = try BrightnessProvider(address: .low, mode: .continuousLowRes)
+        let provider = try BrightnessProvider(address: .low, mode: .continuousHighRes)
         await provider.startReadingLoop(interval: 0.1) { luxValue in
             if abs(appState.current.brightness.rawValue - luxValue) > 1.0 {
                 appState.update { $0.brightness = AppStateBrightness(luxValue) }

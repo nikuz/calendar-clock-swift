@@ -12,7 +12,7 @@ enum CalendarUIUtils {
         let calendar = Calendar.current
         var now = Date()
 
-        if (followingMouse) {
+        if Bool(followingMouse) {
             let mousePosition = GetMousePosition()
             let minuteUnderMouseCursor = Utilities.remapValue(
                 value: mousePosition.x,
@@ -27,7 +27,7 @@ enum CalendarUIUtils {
 
         return calendar.dateComponents([.hour, .minute], from: now)
     }
-    
+
     static func isNightTime(_ time: DateComponents) -> Bool {
         guard let hour = time.hour else {
             return true

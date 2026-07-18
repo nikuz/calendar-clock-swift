@@ -7,13 +7,13 @@ struct CalendarView {
         let _appState = appState.current
         let time = CalendarUIUtils.getTime()
 
-        CalendarTimeComponent.draw(time: time, appState: _appState)
-
-        switch appState.current.calendar {
+        switch _appState.calendar {
             case .loading:
                 CalendarLoadingComponent.draw()
+                CalendarTimeComponent.draw(time: time, appState: _appState)
 
             case .loaded(let events):
+                CalendarTimeComponent.draw(time: time, appState: _appState)
                 for (_, event) in events.enumerated() {
                     CalendarEventCardComponent.draw(
                         event: event, 
@@ -28,6 +28,7 @@ struct CalendarView {
                     time: time, 
                     appState: _appState
                 )
+                CalendarTimeComponent.draw(time: time, appState: _appState)
         }
     }
 }
