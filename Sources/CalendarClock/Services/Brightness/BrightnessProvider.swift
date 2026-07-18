@@ -30,11 +30,11 @@ final class BrightnessProvider {
 
         var description: String {
             switch self {
-            case .deviceUnavailable: return "I2C device is not available on this platform"
-            case .deviceOpenFailed(let path): return "Failed to open I2C device at \(path)"
-            case .ioctlFailed(let msg): return "ioctl failed: \(msg)"
-            case .writeFailed(let msg): return "Write to sensor failed: \(msg)"
-            case .readFailed(let msg): return "Read from sensor failed: \(msg)"
+                case .deviceUnavailable: return "I2C device is not available on this platform"
+                case .deviceOpenFailed(let path): return "Failed to open I2C device at \(path)"
+                case .ioctlFailed(let msg): return "ioctl failed: \(msg)"
+                case .writeFailed(let msg): return "Write to sensor failed: \(msg)"
+                case .readFailed(let msg): return "Read from sensor failed: \(msg)"
             }
         }
     }
@@ -165,10 +165,10 @@ final class BrightnessProvider {
         // reading it back. High-res modes need up to ~180ms; low-res ~24ms.
         let delayMicroseconds: UInt32
         switch mode {
-        case .continuousHighRes, .continuousHighRes2, .oneTimeHighRes, .oneTimeHighRes2:
-            delayMicroseconds = 180_000
-        case .continuousLowRes, .oneTimeLowRes:
-            delayMicroseconds = 24_000
+            case .continuousHighRes, .continuousHighRes2, .oneTimeHighRes, .oneTimeHighRes2:
+                delayMicroseconds = 180_000
+            case .continuousLowRes, .oneTimeLowRes:
+                delayMicroseconds = 24_000
         }
         usleep(delayMicroseconds)
 

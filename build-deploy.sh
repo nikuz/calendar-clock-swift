@@ -79,4 +79,5 @@ if swift build -c release --static-swift-stdlib; then
     echo "Uploading ..."
     ssh "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p ${REMOTE_FULL_PATH}"
     scp ".build/aarch64-unknown-linux-gnu/release/${BINARY_NAME}" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_FULL_PATH}"
+    scp -r ".build/aarch64-unknown-linux-gnu/release/${BINARY_NAME}_${BINARY_NAME}.resources" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_FULL_PATH}"
 fi

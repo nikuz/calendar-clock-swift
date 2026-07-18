@@ -13,7 +13,7 @@ private let startX = (SCREEN_WIDTH - totalWidth) / 2
 private let centerY = CONTENT_HEIGHT / 2
 
 @MainActor
-struct LoadingComponent {
+struct CalendarLoadingComponent {
     static func draw() {
         let time = Float(GetTime())
         

@@ -3,37 +3,31 @@ import CRayLib
 
 @MainActor
 struct CalendarView {
-    static func draw(appState: AppState, fonts: [String: Font]) {
-        TimeComponent.draw(fonts: fonts)
+    static func draw(appState: AppState) {
+        let _appState = appState.current
+        let time = CalendarUIUtils.getTime()
 
-        guard let unscii8Font = fonts["unscii8"] else {
-            return
-        }
+        CalendarTimeComponent.draw(time: time, appState: _appState)
 
         switch appState.current.calendar {
-        case .loading:
-            LoadingComponent.draw()
+            case .loading:
+                CalendarLoadingComponent.draw()
 
-        case .loaded(let events):
-            for (index, event) in events.enumerated() {
-                let summary = event.summary ?? "(untitled)"
-                let dateString: String
-                if let date = event.start.date {
-                    let hour = Calendar.current.component(.hour, from: date)
-                    let minute = Calendar.current.component(.minute, from: date)
-                    dateString = "\(hour):\(minute)"
-                } else {
-                    dateString = "unknown date"
+            case .loaded(let events):
+                for (_, event) in events.enumerated() {
+                    CalendarEventCardComponent.draw(
+                        event: event, 
+                        time: time, 
+                        appState: _appState
+                    )
                 }
-                let eventText = "\(summary) — \(dateString)"
-                DrawText(eventText, 20, Int32(80 + index * 20), 16, .white)
-            }
 
-        case .failed(let error):
-            let errorText = "Failed to load events: \(error.localizedDescription)"
-            let errorTextWidth = MeasureTextEx(unscii8Font, errorText, 16, 1)
-            let errorX = (SCREEN_WIDTH / 2) - (errorTextWidth.x / 2)
-            DrawTextEx(unscii8Font, errorText, Vector2(x: errorX, y: 40), 16, 1, .white)
-        }        
+            case .failed(let error):
+                CalendarErrorComponent.draw(
+                    error: error, 
+                    time: time, 
+                    appState: _appState
+                )
+        }
     }
 }

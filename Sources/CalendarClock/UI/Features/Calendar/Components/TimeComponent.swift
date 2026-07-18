@@ -2,42 +2,20 @@ import Foundation
 import CRayLib
 
 @MainActor
-struct TimeComponent {
-    static func draw(fonts: [String: Font]) {
-        guard let unscii16Font = fonts["unscii16"] else {
-            return
-        }
-        let mousePosition = GetMousePosition()
-        #if DEBUG
-            let followingMouse = KEY_LEFT_CONTROL.isDown
-        #else
-            let followingMouse = false
-        #endif
-        let calendar = Calendar.current
-
-        var now = Date()
-        if (followingMouse) {
-            let minuteUnderMouseCursor = Utilities.remapValue(
-                value: mousePosition.x,
-                inMin: 0,
-                inMax: SCREEN_WIDTH,
-                outMin: 0,
-                outMax: 24 * 60 - 1,
-            )
-            let startOfToday = calendar.startOfDay(for: Date())
-            now = Calendar.current.date(byAdding: .minute, value: Int(minuteUnderMouseCursor), to: startOfToday)!
-        }
-
-        let timeComponents = calendar.dateComponents([.hour, .minute], from: now)
-        let hour = timeComponents.hour ?? 0
-        let minute = timeComponents.minute ?? 0
+struct CalendarTimeComponent {
+    static func draw(time: DateComponents, appState: AppStateData) {
+        let unscii16Font = UIFonts.getFont(.unscii16)
+        let hour = time.hour ?? 0
+        let minute = time.minute ?? 0
         var hour12hFormat = hour
 
         if hour12hFormat > 12 {
             hour12hFormat -= 12
         }
 
-        let fontSize: Float = 48.0
+        let isNightTime = CalendarUIUtils.isNightTime(time)
+        let fontSize: Float = isNightTime ? 80.0 : 48.0
+        let color: Color = ColorBrightness(isNightTime ? .red : .white, appState.brightness.factor)
         let hoursText = String(hour12hFormat)
         let hoursWidth = MeasureTextEx(unscii16Font, hoursText, fontSize, 0)
 
@@ -62,7 +40,7 @@ struct TimeComponent {
         x = x.rounded(.towardZero)
 
         let lineX = x + hoursWidth.x + spacingWidth.x / 2
-        DrawLineV(Vector2(x: lineX, y: 0), Vector2(x: lineX, y: CONTENT_HEIGHT), .yellow)
-        DrawTextEx(unscii16Font, timeText, Vector2(x: x, y: 10), fontSize, 0, .yellow)
+        DrawLineV(Vector2(x: lineX, y: 0), Vector2(x: lineX, y: CONTENT_HEIGHT), color)
+        DrawTextEx(unscii16Font, timeText, Vector2(x: x, y: 10), fontSize, 0, color)
     }
 }

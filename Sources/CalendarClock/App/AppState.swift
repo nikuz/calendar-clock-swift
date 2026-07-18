@@ -1,29 +1,48 @@
 import Foundation
 import Synchronization
 
-enum CalendarState: Sendable {
+enum AppStateCalendar: Sendable {
     case loading
     case loaded([CalendarEvent])
     case failed(any Error & Sendable)
 }
 
-struct StateData: Sendable {
-    var calendar: CalendarState = .loading
+struct AppStateBrightness: Sendable {
+    let rawValue: Double
+    let factor: Float
+
+    private let BRIGHTNESS_MIN: Float = 0.0
+    private let BRIGHTNESS_MAX: Float = 100.0
+
+    init(_ rawValue: Double) {
+        self.rawValue = rawValue
+        self.factor = Utilities.remapValue(
+            value: Float(rawValue),
+            inMin: BRIGHTNESS_MIN,
+            inMax: BRIGHTNESS_MAX,
+            outMin: -1,
+            outMax: 0
+        )
+    }
+}
+
+struct AppStateData: Sendable {
+    var calendar: AppStateCalendar = .loading
     #if os(Linux)
-        var brightness: Double = 0
+        var brightness = AppStateBrightness(0)
     #else
-        var brightness: Double = 100
+        var brightness = AppStateBrightness(100)
     #endif
 }
 
 final class AppState: Sendable {
-    private let state = Mutex(StateData())
+    private let state = Mutex(AppStateData())
 
-    var current: StateData {
+    var current: AppStateData {
         state.withLock { $0 }
     }
 
-    func update(_ body: (inout StateData) -> Void) {
+    func update(_ body: (inout AppStateData) -> Void) {
         state.withLock { body(&$0) }
     }
 }

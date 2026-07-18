@@ -16,8 +16,8 @@ let brightnessBackgroundTask = Task.detached {
     do {
         let provider = try BrightnessProvider(address: .low, mode: .continuousLowRes)
         await provider.startReadingLoop(interval: 0.1) { luxValue in
-            if abs(appState.current.brightness - luxValue) > 1.0 {
-                appState.update { $0.brightness = luxValue }
+            if abs(appState.current.brightness.rawValue - luxValue) > 1.0 {
+                appState.update { $0.brightness = AppStateBrightness(luxValue) }
             }
         }
     } catch {
