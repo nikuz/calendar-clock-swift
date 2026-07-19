@@ -14,9 +14,10 @@ struct CalendarView {
 
             case .loaded(let events):
                 CalendarTimeComponent.draw(time: time, appState: _appState)
-                for (_, event) in events.enumerated() {
+                for (index, event) in events.enumerated() {
                     CalendarEventCardComponent.draw(
                         event: event, 
+                        index: index, 
                         time: time, 
                         appState: _appState
                     )

@@ -15,33 +15,36 @@ struct CalendarTimeComponent {
 
         let isNightTime = CalendarUIUtils.isNightTime(time)
         let fontSize: Float = isNightTime ? 80.0 : 48.0
-        let color: Color = ColorBrightness(isNightTime ? .red : .white, appState.brightness.factor)
+        let color = ColorBrightness(isNightTime ? .red : .white, appState.brightness.factor)
         let hoursText = String(hour12hFormat)
-        let hoursSize = MeasureTextEx(unscii16Font, hoursText, fontSize, 0)
+        let hoursTextSize = MeasureTextEx(unscii16Font, hoursText, fontSize, 0)
 
         let spacingText = " "
-        let spacingSize = MeasureTextEx(unscii16Font, spacingText, fontSize, 0)
+        let spacingTextSize = MeasureTextEx(unscii16Font, spacingText, fontSize, 0)
 
         let minutesText = String(format: "%02d", minute)
+        let minutesTextSize = MeasureTextEx(unscii16Font, minutesText, fontSize, 0)
 
         let timeText = "\(hoursText)\(spacingText)\(minutesText)"
         let timeTextSize = MeasureTextEx(unscii16Font, timeText, fontSize, 0)
         
-        var x = Utilities.remapValue(
+        let x = Utilities.remapValue(
             value: Float(hour * 60 + minute),
             inMin: DAY_START_TIME,
             inMax: DAY_END_TIME,
             outMin: 0,
             outMax: SCREEN_WIDTH,
         )
-        x = max(x - hoursSize.x, 0)
-        x = min(x, SCREEN_WIDTH - timeTextSize.x)
-        x = x.rounded(.towardZero)
 
-        let y: Float = isNightTime ? CONTENT_HEIGHT / 2 - timeTextSize.y / 2 : 5.0
-        let lineX = x + hoursSize.x + spacingSize.x / 2
+        var textX = max(x - hoursTextSize.x - spacingTextSize.x / 2, 0)
+        textX = min(textX, SCREEN_WIDTH - timeTextSize.x)
+        textX = textX.rounded(.towardZero)
+        let textY: Float = isNightTime ? CONTENT_HEIGHT / 2 - timeTextSize.y / 2 : 5.0
+
+        var lineX = max(x, hoursTextSize.x + spacingTextSize.x / 2)
+        lineX = min(lineX, SCREEN_WIDTH - minutesTextSize.x - spacingTextSize.x / 2)
 
         DrawLineV(Vector2(x: lineX, y: 0), Vector2(x: lineX, y: CONTENT_HEIGHT), color)
-        DrawTextEx(unscii16Font, timeText, Vector2(x: x, y: y), fontSize, 0, color)
+        DrawTextEx(unscii16Font, timeText, Vector2(x: textX, y: textY), fontSize, 0, color)
     }
 }

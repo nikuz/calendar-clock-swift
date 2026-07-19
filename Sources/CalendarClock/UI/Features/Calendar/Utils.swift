@@ -25,7 +25,7 @@ enum CalendarUIUtils {
             now = Calendar.current.date(byAdding: .minute, value: Int(minuteUnderMouseCursor), to: startOfToday)!
         }
 
-        return calendar.dateComponents([.hour, .minute], from: now)
+        return calendar.dateComponents([.hour, .minute, .second], from: now)
     }
 
     static func isNightTime(_ time: DateComponents) -> Bool {

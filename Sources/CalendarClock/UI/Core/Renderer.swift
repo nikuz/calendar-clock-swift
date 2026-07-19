@@ -13,7 +13,10 @@ struct Renderer {
 
     func start() {
         let configFlags = FLAG_WINDOW_UNDECORATED.rawValue | FLAG_WINDOW_RESIZABLE.rawValue
-        SetConfigFlags(UInt32(configFlags))
+        SetConfigFlags(configFlags)
+        #if os(macOS)
+            SetConfigFlags(FLAG_WINDOW_HIGHDPI.rawValue)
+        #endif
 
         InitWindow(Int32(SCREEN_WIDTH), Int32(SCREEN_HEIGHT), "Calendar Clock")
         SetTargetFPS(UI_FPS)

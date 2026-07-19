@@ -10,7 +10,7 @@ struct CalendarErrorComponent {
 
         let unscii8Font = UIFonts.getFont(.unscii8)
         let errorText = error.localizedDescription
-        let fontSize: Float = 10.0;
+        let fontSize: Float = 8.0;
         let textWidth = MeasureTextEx(unscii8Font, errorText, fontSize, 0)
         let position = Vector2(
             x: SCREEN_WIDTH / 2 - textWidth.x / 2, 
