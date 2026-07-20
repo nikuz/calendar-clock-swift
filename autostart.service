@@ -6,6 +6,8 @@ After=network.target
 User=dietpi
 Group=dietpi
 
+WorkingDirectory=/home/dietpi/calendar-clock-swift
+
 ExecStart=/home/dietpi/calendar-clock-swift/.build/aarch64-unknown-linux-gnu/release/CalendarClock
 
 Restart=on-failure

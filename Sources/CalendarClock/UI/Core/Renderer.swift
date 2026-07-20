@@ -20,7 +20,11 @@ struct Renderer {
 
         InitWindow(Int32(SCREEN_WIDTH), Int32(SCREEN_HEIGHT), "Calendar Clock")
         SetTargetFPS(UI_FPS)
-        SetExitKey(Int32(KEY_NULL.rawValue))
+        #if DEBUG
+            SetExitKey(Int32(KEY_Q.rawValue))
+        #else 
+            SetExitKey(Int32(KEY_NULL.rawValue))
+        #endif
         
         uiFonts.load()
 
@@ -29,7 +33,7 @@ struct Renderer {
             CloseWindow()
         }
 
-        while !WindowShouldClose() && !KEY_Q.isPressed {
+        while !WindowShouldClose() {
             BeginDrawing()
             ClearBackground(.black)
 
