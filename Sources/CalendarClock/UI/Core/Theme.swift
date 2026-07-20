@@ -7,7 +7,7 @@ extension Color {
     static let gold         = Color(r: 255, g: 203, b: 0,   a: 255)
     static let orange       = Color(r: 255, g: 161, b: 0,   a: 255)
     static let pink         = Color(r: 255, g: 109, b: 194, a: 255)
-    static let red          = Color(r: 230, g: 41,  b: 55,  a: 255)
+    static let red          = Color(r: 255, g: 0,   b: 0,   a: 255)
     static let maroon       = Color(r: 190, g: 33,  b: 55,  a: 255)
     static let green        = Color(r: 0,   g: 228, b: 48,  a: 255)
     static let lime         = Color(r: 0,   g: 158, b: 47,  a: 255)
