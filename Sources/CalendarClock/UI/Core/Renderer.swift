@@ -12,7 +12,7 @@ struct Renderer {
     }
 
     func start() {
-        let configFlags = FLAG_WINDOW_UNDECORATED.rawValue | FLAG_WINDOW_RESIZABLE.rawValue
+        let configFlags = FLAG_WINDOW_UNDECORATED.rawValue
         SetConfigFlags(configFlags)
         #if os(macOS)
             SetConfigFlags(FLAG_WINDOW_HIGHDPI.rawValue)

@@ -13,8 +13,6 @@ struct CalendarEventCardComponent {
         }
 
         let calendar = Calendar.current
-        let unscii8Font = UIFonts.getFont(.unscii8)
-
         let marginLeft = Utilities.remapValue(
             value: Int32(currentHour * 60 + currentMinute),
             inMin: Int32(DAY_START_TIME),
@@ -23,44 +21,35 @@ struct CalendarEventCardComponent {
             outMax: Int32((SCREEN_WIDTH * EVENTS_ZOOM) / (EVENTS_ZOOM / (EVENTS_ZOOM - 1))),
         )
         let eventStartHour = calendar.component(.hour, from: eventStartDate)
-        let eventStartMinute = eventStartHour * 60 + calendar.component(.minute, from: eventStartDate)
+        let eventStartMinute = calendar.component(.minute, from: eventStartDate)
         let startPosition = Utilities.remapValue(
-            value: Int32(eventStartMinute),
+            value: Int32(eventStartHour * 60 + eventStartMinute),
             inMin: Int32(DAY_START_TIME),
             inMax: Int32(DAY_END_TIME),
             outMin: 0,
             outMax: Int32(SCREEN_WIDTH * EVENTS_ZOOM),
         )
         let eventEndHour = calendar.component(.hour, from: eventEndDate)
-        let eventEndMinute = eventEndHour * 60 + calendar.component(.minute, from: eventEndDate)
+        let eventEndMinute = calendar.component(.minute, from: eventEndDate)
         let endPosition = Utilities.remapValue(
-            value: Int32(eventEndMinute),
+            value: Int32(eventEndHour * 60 + eventEndMinute),
             inMin: Int32(DAY_START_TIME),
             inMax: Int32(DAY_END_TIME),
             outMin: 0,
             outMax: Int32(SCREEN_WIDTH * EVENTS_ZOOM)
         )
 
-        // let dateString: String
-
-        // if let date = event.start.date {
-        //     let hour = Calendar.current.component(.hour, from: date)
-        //     let minute = Calendar.current.component(.minute, from: date)
-        //     dateString = "\(hour):\(minute)"
-        // } else {
-        //     dateString = "unknown date"
-        // }
-
-        // let eventText = "\(summary) — \(dateString)"
-        let fontSize: Float = 8.0
-
-        // let width = Int32((endPosition - startPosition).rounded())
         let xStart = startPosition - marginLeft
         let xEnd = endPosition - marginLeft
         let yStart = Int32(CONTENT_HEIGHT / 2)
         let yEnd = Int32(CONTENT_HEIGHT)
 
-        let color = ColorBrightness(EVENT_COLORS[index], appState.brightness.factor)
+        var brightnessFactor = appState.brightness.factor
+        // dim the past events
+        if eventEndHour * 60 + eventEndMinute < currentHour * 60 + currentMinute {
+            brightnessFactor -= 0.3
+        }
+        let color = ColorBrightness(EVENT_COLORS[index], brightnessFactor)
 
         let chamferSize: Int32 = 4
         let lineThickness: Int32 = 1
@@ -99,8 +88,89 @@ struct CalendarEventCardComponent {
         DrawLine(chamferRightXStart, yStart, chamferRightXEnd, yStart + chamferSize, color)
         DrawLine(xEnd, yStart + chamferSize, xEnd, yEnd, color)
 
+
+        let hPadding: Int32 = 5
+        let vPadding: Int32 = 5
+        let lineHeight: Int32 = 10
+        var timeSpace: Int32 = 20
+        let boxWidth = xEnd - xStart - hPadding * 2
+        let isTinyEvent = xEnd - xStart <= 40
+        let unscii8Font = UIFonts.getFont(.unscii8)
+        let tiny5Font = UIFonts.getFont(.tiny5)
+        let font = isTinyEvent ? tiny5Font : unscii8Font
+        let fontSize: Int32 = isTinyEvent ? 10 : 8
+
+        // time
+        var eventStartTime = "\(eventStartHour)"
+        if (eventStartMinute != 0) {
+            eventStartTime += ":\(eventStartMinute)"
+        }
+        let eventStartTimeSize = MeasureTextEx(font, eventStartTime, Float(fontSize), 0)
+        var eventEndTime = "\(eventEndHour)"
+        if (eventEndMinute != 0) {
+            eventEndTime += ":\(eventEndMinute)"
+        }
+        let eventEndTimeSize = MeasureTextEx(font, eventEndTime, Float(fontSize), 0)
+
+        var endTimeX = Float(xStart + hPadding + boxWidth - Int32(eventEndTimeSize.x))
+        var endTimeY = Float(yStart + vPadding)
+        if eventStartTimeSize.x + eventEndTimeSize.x > Float(boxWidth) {
+            endTimeX = Float(xStart + hPadding)
+            endTimeY = Float(yStart + vPadding + lineHeight)
+            timeSpace += lineHeight
+        }
+
+        DrawTextEx(
+            font,
+            eventStartTime,
+            Vector2(x: Float(xStart + hPadding), y: Float(yStart + vPadding)),
+            Float(fontSize),
+            0,
+            color
+        )
+        DrawTextEx(
+            font,
+            eventEndTime,
+            Vector2(x: endTimeX, y: endTimeY),
+            Float(fontSize),
+            0,
+            color
+        )
+
+        // summary
+        let summaryBoxHeight = yEnd - yStart - timeSpace
         let summary = event.summary ?? "(untitled)"
-        DrawTextEx(unscii8Font, summary, Vector2(x: Float(xStart), y: Float(yStart + 10)), fontSize, 0, color)
+        var lines: [String] = []
+        var curLine = ""
+        var curLineWidth: Int32 = 0
+
+        for (index, character) in summary.enumerated() {
+            if curLineWidth + fontSize >= boxWidth || index == summary.count - 1 {
+                if index == summary.count - 1 {
+                    curLine.append(character)
+                }
+                curLine.trimPrefix(" ")
+                lines.append(curLine)
+                curLine = ""
+                curLineWidth = 0
+                if Int32(lines.count) * lineHeight >= summaryBoxHeight {
+                    break
+                }
+            }
+            curLine.append(character)
+            curLineWidth += fontSize
+        }
+
+        for (index, line) in lines.enumerated() {
+            DrawTextEx(
+                font,
+                line,
+                Vector2(x: Float(xStart + hPadding), y: Float(yStart + timeSpace + (10 * Int32(index)))),
+                Float(fontSize),
+                0,
+                color
+            )
+        }
     }
 }
 
