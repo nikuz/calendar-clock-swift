@@ -89,16 +89,17 @@ struct CalendarEventCardComponent {
         DrawLine(xEnd, yStart + chamferSize, xEnd, yEnd, color)
 
 
-        let hPadding: Int32 = 5
+        let isTinyEvent = xEnd - xStart <= 40
+        let hPadding: Int32 = isTinyEvent ? 2 : 5
         let vPadding: Int32 = 5
         let lineHeight: Int32 = 10
         var timeSpace: Int32 = 20
         let boxWidth = xEnd - xStart - hPadding * 2
-        let isTinyEvent = xEnd - xStart <= 40
         let unscii8Font = UIFonts.getFont(.unscii8)
-        let tiny5Font = UIFonts.getFont(.tiny5)
-        let font = isTinyEvent ? tiny5Font : unscii8Font
-        let fontSize: Int32 = isTinyEvent ? 10 : 8
+        let silkscreen3x7Font = UIFonts.getFont(.silkscreen3x7)
+        let font = isTinyEvent ? silkscreen3x7Font : unscii8Font
+        let fontSize: Int32 = isTinyEvent ? 9 : 8
+        let characterWidth: Int32 = isTinyEvent ? 4 : 8
 
         // time
         var eventStartTime = "\(eventStartHour)"
@@ -145,7 +146,7 @@ struct CalendarEventCardComponent {
         var curLineWidth: Int32 = 0
 
         for (index, character) in summary.enumerated() {
-            if curLineWidth + fontSize >= boxWidth || index == summary.count - 1 {
+            if curLineWidth + characterWidth >= boxWidth || index == summary.count - 1 {
                 if index == summary.count - 1 {
                     curLine.append(character)
                 }
@@ -158,7 +159,7 @@ struct CalendarEventCardComponent {
                 }
             }
             curLine.append(character)
-            curLineWidth += fontSize
+            curLineWidth += characterWidth
         }
 
         for (index, line) in lines.enumerated() {

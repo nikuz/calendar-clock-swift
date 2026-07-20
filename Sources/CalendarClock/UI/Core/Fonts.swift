@@ -2,7 +2,7 @@ import Foundation
 import CRayLib
 
 @MainActor enum UIFontName: CaseIterable {
-    case unscii16, unscii8, tiny5
+    case unscii16, unscii8, silkscreen3x7
 }
 
 @MainActor private struct UIFontsList {
@@ -25,7 +25,7 @@ import CRayLib
     switch name {
         case .unscii16: return GetFontDefault()
         case .unscii8: return GetFontDefault()
-        case .tiny5: return GetFontDefault()
+        case .silkscreen3x7: return GetFontDefault()
     }
 }
 
@@ -33,26 +33,26 @@ import CRayLib
 class UIFonts {
     private let unscii16FontPath: String
     private let unscii8FontPath: String
-    private let tiny5FontPath: String
+    private let silkscreen3x7FontPath: String
 
     init() {
         guard let unscii16FontPath = Bundle.module.path(forResource: "unscii-16", ofType: "ttf", inDirectory: "fonts"),
             let unscii8FontPath = Bundle.module.path(forResource: "unscii-8", ofType: "ttf", inDirectory: "fonts"),
-            let tiny5FontPath = Bundle.module.path(forResource: "Tiny5", ofType: "ttf", inDirectory: "fonts")
+            let silkscreen3x7FontPath = Bundle.module.path(forResource: "silkscreen-3x7", ofType: "ttf", inDirectory: "fonts")
         else {
             fatalError("Font not found")
         }
         self.unscii16FontPath = unscii16FontPath
         self.unscii8FontPath = unscii8FontPath
-        self.tiny5FontPath = tiny5FontPath
+        self.silkscreen3x7FontPath = silkscreen3x7FontPath
     }
 
     func load() {
         uiFonts = UIFontsList { name in
             switch name {
-                case .unscii16: return LoadFont(unscii16FontPath)
-                case .unscii8: return LoadFont(unscii8FontPath)
-                case .tiny5: return LoadFont(tiny5FontPath)
+                case .unscii16: return LoadFontEx(unscii16FontPath, 16, nil, 250)
+                case .unscii8: return LoadFontEx(unscii8FontPath, 8, nil, 250)
+                case .silkscreen3x7: return LoadFontEx(silkscreen3x7FontPath, 9, nil, 250)
             }
         }
     }
