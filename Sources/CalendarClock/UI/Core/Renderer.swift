@@ -20,6 +20,7 @@ struct Renderer {
 
         InitWindow(Int32(SCREEN_WIDTH), Int32(SCREEN_HEIGHT), "Calendar Clock")
         SetTargetFPS(UI_FPS)
+        SetExitKey(Int32(KEY_NULL.rawValue))
         
         uiFonts.load()
 

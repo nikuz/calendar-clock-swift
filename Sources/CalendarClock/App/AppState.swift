@@ -1,10 +1,41 @@
 import Foundation
 import Synchronization
 
+struct CalendarPayload: Sendable {
+    var events: [CalendarEvent] = []
+    var confirmedApproachingEventId: String?
+}
+
 enum AppStateCalendar: Sendable {
     case loading
-    case loaded([CalendarEvent])
+    case loaded(CalendarPayload)
     case failed(any Error & Sendable)
+    
+    mutating func updatePayload(_ transform: (inout CalendarPayload) -> Void) {
+        var payload = CalendarPayload()
+        
+        if case .loaded(let existing) = self {
+            payload = existing
+        }
+        
+        transform(&payload)
+        self = .loaded(payload)
+    }
+
+    var payload: CalendarPayload? {
+        if case .loaded(let payload) = self {
+            return payload
+        }
+        return nil
+    }
+
+    var confirmedApproachingEventId: String? {
+        payload?.confirmedApproachingEventId
+    }
+    
+    var events: [CalendarEvent] {
+        payload?.events ?? []
+    }
 }
 
 struct AppStateBrightness: Sendable {

@@ -3,7 +3,11 @@ import CRayLib
 
 @MainActor
 struct CalendarTimeComponent {
-    static func draw(time: DateComponents, appState: AppStateData) {
+    static func draw(
+        time: DateComponents, 
+        appState: AppStateData, 
+        activeEventIndex: Int? = nil,
+    ) {
         let unscii16Font = UIFonts.getFont(.unscii16)
         let hour = time.hour ?? 0
         let minute = time.minute ?? 0
@@ -15,7 +19,6 @@ struct CalendarTimeComponent {
 
         let isNightTime = CalendarUIUtils.isNightTime(time)
         let fontSize: Float = isNightTime ? 80.0 : 48.0
-        let color = ColorBrightness(isNightTime ? .red : .white, appState.brightness.factor)
         let hoursText = String(hour12hFormat)
         let hoursTextSize = MeasureTextEx(unscii16Font, hoursText, fontSize, 0)
 
@@ -43,6 +46,11 @@ struct CalendarTimeComponent {
 
         var lineX = max(x, hoursTextSize.x + spacingTextSize.x / 2)
         lineX = min(lineX, SCREEN_WIDTH - minutesTextSize.x - spacingTextSize.x / 2)
+
+        var color = ColorBrightness(isNightTime ? .red : .white, appState.brightness.factor)
+        if let eventIndex = activeEventIndex {
+            color = ColorBrightness(CALENDAR_EVENT_COLORS[eventIndex], appState.brightness.factor)
+        }
 
         DrawLineV(Vector2(x: lineX, y: 0), Vector2(x: lineX, y: CONTENT_HEIGHT), color)
         DrawTextEx(unscii16Font, timeText, Vector2(x: textX, y: textY), fontSize, 0, color)

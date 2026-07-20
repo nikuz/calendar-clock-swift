@@ -11,7 +11,11 @@ actor GoogleCalendarService {
         
         // Initial fetch
         let loadedEvents = try await calendarProvider.fetchEvents()
-        appState.update { $0.calendar = .loaded(loadedEvents) }
+        appState.update { state in
+            state.calendar.updatePayload { payload in 
+                payload.events = loadedEvents
+            }
+        }
 
         #if !DEBUG
             try await calendarProvider.watch(ngrokCredentials: ngrokCredentials)
@@ -25,7 +29,11 @@ actor GoogleCalendarService {
             Task {
                 do {
                     let newEvents = try await calendarProvider.fetchEvents()
-                    appState.update { $0.calendar = .loaded(newEvents) }
+                    appState.update { state in
+                        state.calendar.updatePayload { payload in 
+                            payload.events = newEvents
+                        }
+                    }
                 } catch {
                     print("Webhook fetch failed: \(error)")
                 }
