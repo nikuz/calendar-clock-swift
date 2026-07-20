@@ -90,7 +90,7 @@ struct CalendarEventCardComponent {
 
 
         let isTinyEvent = xEnd - xStart <= 40
-        let hPadding: Int32 = isTinyEvent ? 2 : 5
+        let hPadding: Int32 = isTinyEvent ? 3 : 5
         let vPadding: Int32 = 5
         let lineHeight: Int32 = 10
         var timeSpace: Int32 = 20
