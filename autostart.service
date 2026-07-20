@@ -1,0 +1,25 @@
+[Unit]
+Description=Calendar Clock Swift
+After=network.target
+
+[Service]
+User=dietpi
+Group=dietpi
+
+ExecStart=/home/dietpi/calendar-clock-swift/.build/aarch64-unknown-linux-gnu/release/CalendarClock
+
+Restart=on-failure
+
+StandardOutput=journal
+StandardError=journal
+
+RestartSec=2
+
+[Install]
+# Start the service during multi-user boot
+WantedBy=multi-user.target
+
+# sudo systemctl daemon-reload
+# sudo systemctl start calendar-clock-swift.service
+# systemctl status calendar-clock-swift.service
+# sudo journalctl -u calendar-clock-swift.service

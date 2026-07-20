@@ -6,6 +6,12 @@ struct CalendarView {
     static func draw(appState: AppState) {
         let _appState = appState.current
         let time = CalendarUIUtils.getTime()
+        let isNightTime = CalendarUIUtils.isNightTime(time)
+
+        if isNightTime {
+            CalendarTimeComponent.draw(time: time, appState: _appState)
+            return
+        }
 
         switch _appState.calendar {
             case .loading:
