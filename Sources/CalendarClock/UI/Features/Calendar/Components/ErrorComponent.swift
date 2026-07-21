@@ -3,7 +3,11 @@ import CRayLib
 
 @MainActor
 struct CalendarErrorComponent {
-    static func draw(error: Error, time: DateComponents, appState: AppStateData) {
+    static func draw(
+        error: Error, 
+        time: CalendarUIUtils.TimeInfo,
+        appState: AppStateData,
+    ) {
         guard !CalendarUIUtils.isNightTime(time) else {
             return
         }

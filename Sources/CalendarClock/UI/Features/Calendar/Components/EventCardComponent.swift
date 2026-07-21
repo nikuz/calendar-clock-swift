@@ -3,10 +3,16 @@ import CRayLib
 
 @MainActor
 struct CalendarEventCardComponent {
-    static func draw(event: CalendarEvent, index: Int, time: DateComponents, appState: AppStateData) {
-        guard let currentHour = time.hour,
-            let currentMinute = time.minute,
-            let currentSecond = time.second,
+    static func draw(
+        event: CalendarEvent, 
+        index: Int, 
+        time: CalendarUIUtils.TimeInfo,
+        appState: AppStateData,
+        eventsOrder: CalendarUIUtils.EventsOrder,
+    ) {
+        guard let currentHour = time.components.hour,
+            let currentMinute = time.components.minute,
+            let currentSecond = time.components.second,
             let eventStartDate = event.start.date,
             let eventEndDate = event.end.date
         else {
@@ -52,12 +58,16 @@ struct CalendarEventCardComponent {
         var color = ColorBrightness(CALENDAR_EVENT_COLORS[index], brightnessFactor)
         var borderColor = color
         var fill: Color = .black
-        let isActiveEvent = currentTime >= eventStartTime - 1 && currentTime <= eventEndTime
+
+        let activeEvent = eventsOrder.activeEvent
+        let approachingEvent = eventsOrder.approachingEvent
+        let isActiveEvent =
+            (approachingEvent != nil && event.id == approachingEvent?.event.id)
+            || (approachingEvent == nil && activeEvent != nil && event.id == activeEvent?.event.id) 
 
         if isActiveEvent && (appState.calendar.confirmedApproachingEventId == event.id || currentSecond % 2 == 0) {
             fill = color
             color = .black
-            borderColor = .blank
         }
 
         // gray out the past events

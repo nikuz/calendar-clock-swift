@@ -2,7 +2,9 @@ import Foundation
 import CRayLib
 
 enum CalendarUIUtils {
-    static func getTime() -> DateComponents {
+    typealias TimeInfo = (now: Date, components: DateComponents)
+
+    static func getTime() -> TimeInfo {
         let mousePosition = GetMousePosition()
         var followingMouse = false
         if mousePosition.x > 0 
@@ -38,44 +40,61 @@ enum CalendarUIUtils {
             ) ?? timeWithMinutes
         }
 
-        return calendar.dateComponents([.hour, .minute, .second], from: now)
+        return (
+            now,
+            calendar.dateComponents([.hour, .minute, .second], from: now)
+        )
     }
 
-    static func isNightTime(_ time: DateComponents) -> Bool {
-        guard let hour = time.hour else {
+    static func isNightTime(_ time: TimeInfo) -> Bool {
+        guard let hour = time.components.hour else {
             return true
         }
         return hour < MORNING_HOUR || hour >= EVENING_HOUR;
     }
 
-    static func getActiveCalendarEvent(events: [CalendarEvent], time: DateComponents) -> (Int?, CalendarEvent?) {
-        guard let currentHour = time.hour, let currentMinute = time.minute else {
-            return (nil, nil)
-        }
+    typealias EventsOrder = (
+        prev: (index: Int, event: CalendarEvent)?,
+        activeEvent: (index: Int, event: CalendarEvent)?,
+        nextEvent: (index: Int, event: CalendarEvent)?,
+        approachingEvent: (index: Int, event: CalendarEvent)?,
+    )
 
-        let currentTime = currentHour * 60 + currentMinute
+    static func getEventsOrder(
+        events: [CalendarEvent], 
+        time: TimeInfo,
+    ) -> EventsOrder {
         let calendar = Calendar.current
+        var prevEvent: (index: Int, event: CalendarEvent)?
+        var activeEvent: (index: Int, event: CalendarEvent)?
+        var nextEvent: (index: Int, event: CalendarEvent)?
+        var approachingEvent: (index: Int, event: CalendarEvent)?
 
         for (index, event) in events.enumerated() {
             guard let eventStartDate = event.start.date,
-                let eventEndDate = event.end.date
+                let eventEndDate = event.end.date,
+                let eventStartDateMinusOneMinute = calendar.date(byAdding: .minute, value: -1, to: eventStartDate)
             else {
                 continue
             }
 
-            let eventStartHour = calendar.component(.hour, from: eventStartDate)
-            let eventStartMinute = calendar.component(.minute, from: eventStartDate)
-            let eventStartTime = eventStartHour * 60 + eventStartMinute
-
-            let eventEndHour = calendar.component(.hour, from: eventEndDate)
-            let eventEndMinute = calendar.component(.minute, from: eventEndDate)
-            let eventEndTime = eventEndHour * 60 + eventEndMinute
-
-            if currentTime >= eventStartTime - 1 && currentTime <= eventEndTime {
-                return (index, event)
+            if time.now > eventEndDate {
+                prevEvent = (index, event)
+            } else if time.now >= eventStartDate && time.now <= eventEndDate {
+                activeEvent = (index, event)
+            } else if time.now >= eventStartDateMinusOneMinute && time.now < eventStartDate {
+                approachingEvent = (index, event)
+                nextEvent = (index, event)
+            } else if time.now < eventStartDateMinusOneMinute && nextEvent == nil {
+                nextEvent = (index, event)
             }
         }
 
-        return (nil, nil)
+        return (
+            prevEvent,
+            activeEvent,
+            nextEvent,
+            approachingEvent,
+        )
     }
 }

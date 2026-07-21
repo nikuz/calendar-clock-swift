@@ -19,25 +19,28 @@ struct CalendarView {
                 CalendarTimeComponent.draw(time: time, appState: _appState)
 
             case .loaded(let payload):
-                let activeEventProps = CalendarUIUtils.getActiveCalendarEvent(events: payload.events, time: time)
-                if let activeEvent = activeEventProps.1, KEY_ESCAPE.isPressed {
+                let eventsOrder = CalendarUIUtils.getEventsOrder(events: payload.events, time: time)
+                let activeEvent = eventsOrder.activeEvent
+                let approachingEvent = eventsOrder.approachingEvent
+                if let flashingEvent = activeEvent ?? approachingEvent, KEY_ESCAPE.isPressed {
                     appState.update { state in
-                        state.calendar.updatePayload { payload in 
-                            payload.confirmedApproachingEventId = activeEvent.id
+                        state.calendar.updatePayload { payload in
+                            payload.confirmedApproachingEventId = flashingEvent.event.id
                         }
                     }
                 }
                 CalendarTimeComponent.draw(
                     time: time, 
                     appState: _appState,
-                    activeEventIndex: activeEventProps.0,
+                    eventsOrder: eventsOrder,
                 )
                 for (index, event) in payload.events.enumerated() {
                     CalendarEventCardComponent.draw(
                         event: event, 
                         index: index, 
                         time: time, 
-                        appState: _appState
+                        appState: _appState,
+                        eventsOrder: eventsOrder
                     )
                 }
 
