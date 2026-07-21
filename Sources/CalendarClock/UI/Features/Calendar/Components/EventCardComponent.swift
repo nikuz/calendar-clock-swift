@@ -72,8 +72,8 @@ struct CalendarEventCardComponent {
 
         // gray out the past events
         if currentTime > eventEndTime {
-            color = .darkGray
-            borderColor = .darkGray
+            color = ColorBrightness(.darkGray, brightnessFactor)
+            borderColor = color
         }
 
         let chamferSize: Int32 = 4
