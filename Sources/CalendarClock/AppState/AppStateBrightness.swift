@@ -3,7 +3,7 @@ struct AppStateBrightness: Sendable {
     let factor: Float
 
     private let BRIGHTNESS_MIN: Float = 0.0
-    private let BRIGHTNESS_MAX: Float = 40.0
+    private let BRIGHTNESS_MAX: Float = 50.0
 
     init(_ rawValue: Double) {
         self.rawValue = rawValue
@@ -14,6 +14,6 @@ struct AppStateBrightness: Sendable {
             outMin: -1,
             outMax: 0
         )
-        self.factor = max(factor, -0.95)
+        self.factor = min(max(factor, -0.85), -0.2)
     }
 }
