@@ -4,12 +4,13 @@ import CRayLib
 @MainActor
 struct CalendarEventCardComponent {
     static func draw(
-        event: CalendarEvent, 
+        positionedEvent: PositionedCalendarEvent, 
         index: Int, 
         time: CalendarUIUtils.TimeInfo,
         appState: AppStateData,
         eventsOrder: CalendarUIUtils.EventsOrder,
     ) {
+        let event = positionedEvent.event
         guard let currentHour = time.components.hour,
             let currentMinute = time.components.minute,
             let currentSecond = time.components.second,
@@ -51,8 +52,14 @@ struct CalendarEventCardComponent {
 
         let xStart = startPosition - marginLeft
         let xEnd = endPosition - marginLeft
-        let yStart = Int32(CONTENT_HEIGHT / 2)
         let yEnd = Int32(CONTENT_HEIGHT)
+        var yStart = Int32(CONTENT_HEIGHT / 2)
+
+        // less than 100%
+        if positionedEvent.height < 100 {
+            let yStartOnePercent = Float(yStart) / 100
+            yStart += Int32(yStartOnePercent * Float(100 - positionedEvent.height))
+        }
 
         let brightnessFactor = appState.brightness.factor
         var color = ColorBrightness(CALENDAR_EVENT_COLORS[index], brightnessFactor)

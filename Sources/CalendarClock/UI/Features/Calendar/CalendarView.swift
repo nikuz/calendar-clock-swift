@@ -34,9 +34,9 @@ struct CalendarView {
                     appState: _appState,
                     eventsOrder: eventsOrder,
                 )
-                for (index, event) in payload.events.enumerated() {
+                for (index, event) in payload.positionedEvents.enumerated() {
                     CalendarEventCardComponent.draw(
-                        event: event, 
+                        positionedEvent: event, 
                         index: index, 
                         time: time, 
                         appState: _appState,
