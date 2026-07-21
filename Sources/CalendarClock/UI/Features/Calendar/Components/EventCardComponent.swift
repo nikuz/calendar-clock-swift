@@ -61,7 +61,8 @@ struct CalendarEventCardComponent {
             yStart += Int32(yStartOnePercent * Float(100 - positionedEvent.height))
         }
 
-        let brightnessFactor = appState.brightness.factor
+        let isNightTime = CalendarUIUtils.isNightTime(time)
+        let brightnessFactor = isNightTime ? appState.brightness.nightFactor : appState.brightness.dayFactor
         var color = ColorBrightness(CALENDAR_EVENT_COLORS[index], brightnessFactor)
         var borderColor = color
         var fill: Color = .black
@@ -133,12 +134,12 @@ struct CalendarEventCardComponent {
         let characterWidth: Int32 = isTinyEvent ? 4 : 8
 
         // time
-        var eventStartTimeString = "\(eventStartHour)"
+        var eventStartTimeString = "\(CalendarUIUtils.formatTo12H(eventStartHour))"
         if (eventStartMinute != 0) {
             eventStartTimeString += ":\(eventStartMinute)"
         }
         let eventStartTimeStringSize = MeasureTextEx(font, eventStartTimeString, Float(fontSize), 0)
-        var eventEndTimeString = "\(eventEndHour)"
+        var eventEndTimeString = "\(CalendarUIUtils.formatTo12H(eventEndHour))"
         if (eventEndMinute != 0) {
             eventEndTimeString += ":\(eventEndMinute)"
         }

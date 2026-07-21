@@ -53,6 +53,14 @@ enum CalendarUIUtils {
         return hour < MORNING_HOUR || hour >= EVENING_HOUR;
     }
 
+    static func formatTo12H(_ hour: Int) -> Int {
+        var hour12hFormat = hour
+        if hour12hFormat > 12 {
+            hour12hFormat -= 12
+        }
+        return hour12hFormat
+    }
+
     typealias EventsOrder = (
         prev: (index: Int, event: CalendarEvent)?,
         activeEvent: (index: Int, event: CalendarEvent)?,

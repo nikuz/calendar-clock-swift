@@ -11,12 +11,7 @@ struct CalendarTimeComponent {
         let unscii16Font = UIFonts.getFont(.unscii16)
         let hour = time.components.hour ?? 0
         let minute = time.components.minute ?? 0
-        var hour12hFormat = hour
-
-        if hour12hFormat > 12 {
-            hour12hFormat -= 12
-        }
-
+        let hour12hFormat = CalendarUIUtils.formatTo12H(hour)
         let isNightTime = CalendarUIUtils.isNightTime(time)
         let fontSize: Float = isNightTime ? 80.0 : 48.0
         let hoursText = String(hour12hFormat)
@@ -47,9 +42,10 @@ struct CalendarTimeComponent {
         var lineX = max(x, hoursTextSize.x + spacingTextSize.x / 2)
         lineX = min(lineX, SCREEN_WIDTH - minutesTextSize.x - spacingTextSize.x / 2)
 
-        var color = ColorBrightness(isNightTime ? .red : .white, appState.brightness.factor)
+        let brightnessFactor = isNightTime ? appState.brightness.nightFactor : appState.brightness.dayFactor
+        var color = ColorBrightness(isNightTime ? .red : .white, brightnessFactor)
         if let activeEvent = eventsOrder?.activeEvent {
-            color = ColorBrightness(CALENDAR_EVENT_COLORS[activeEvent.index], appState.brightness.factor)
+            color = ColorBrightness(CALENDAR_EVENT_COLORS[activeEvent.index], brightnessFactor)
         }
 
         DrawLineV(Vector2(x: lineX, y: 0), Vector2(x: lineX, y: CONTENT_HEIGHT), color)

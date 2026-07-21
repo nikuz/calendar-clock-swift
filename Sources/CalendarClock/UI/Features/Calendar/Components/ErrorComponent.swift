@@ -20,7 +20,7 @@ struct CalendarErrorComponent {
             x: SCREEN_WIDTH / 2 - textWidth.x / 2, 
             y: CONTENT_HEIGHT  - textWidth.y - 10,
         )
-        let color: Color = ColorBrightness(.maroon, appState.brightness.factor)
+        let color: Color = ColorBrightness(.maroon, appState.brightness.dayFactor)
 
         DrawTextEx(unscii8Font, errorText, position, fontSize, 0, color)
     }
