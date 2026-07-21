@@ -1,0 +1,22 @@
+[Unit]
+Description=Bluetooth Keyboard Proxy
+After=bluetooth.target
+
+[Service]
+User=root
+
+ExecStart=/usr/bin/python3 /home/dietpi/calendar-clock-swift/virtual-keyboard.py
+
+Restart=always
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+# sudo systemctl daemon-reload
+# sudo systemctl enable virtual-keyboard.service
+# sudo systemctl start virtual-keyboard.service
+# systemctl status virtual-keyboard.service
+# sudo journalctl -u virtual-keyboard.service

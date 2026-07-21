@@ -48,18 +48,22 @@ struct CalendarEventCardComponent {
         let yStart = Int32(CONTENT_HEIGHT / 2)
         let yEnd = Int32(CONTENT_HEIGHT)
 
-        var brightnessFactor = appState.brightness.factor
-        // dim the past events
-        if currentTime > eventEndTime {
-            brightnessFactor -= 0.3
-        }
+        let brightnessFactor = appState.brightness.factor
         var color = ColorBrightness(CALENDAR_EVENT_COLORS[index], brightnessFactor)
+        var borderColor = color
         var fill: Color = .black
         let isActiveEvent = currentTime >= eventStartTime - 1 && currentTime <= eventEndTime
 
         if isActiveEvent && (appState.calendar.confirmedApproachingEventId == event.id || currentSecond % 2 == 0) {
             fill = color
             color = .black
+            borderColor = .blank
+        }
+
+        // gray out the past events
+        if currentTime > eventEndTime {
+            color = .darkGray
+            borderColor = .darkGray
         }
 
         let chamferSize: Int32 = 4
@@ -67,7 +71,7 @@ struct CalendarEventCardComponent {
 
         let chamferLeftXStart = xStart
         let chamferLeftXEnd = xStart + chamferSize
-        
+
         #if os(Linux)
             let chamferRightXStart = xEnd - chamferSize + lineThickness
             let chamferRightXEnd = xEnd + lineThickness
@@ -93,12 +97,11 @@ struct CalendarEventCardComponent {
         )
 
         // border
-        DrawLine(xStart, yStart + chamferSize, xStart, yEnd, color)
-        DrawLine(chamferLeftXStart, yStart + chamferSize, chamferLeftXEnd, yStart, color)
-        DrawLine(xStart + chamferSize, yStart, chamferRightXStart, yStart, color)
-        DrawLine(chamferRightXStart, yStart, chamferRightXEnd, yStart + chamferSize, color)
-        DrawLine(xEnd, yStart + chamferSize, xEnd, yEnd, color)
-
+        DrawLine(xStart, yStart + chamferSize, xStart, yEnd, borderColor)
+        DrawLine(chamferLeftXStart, yStart + chamferSize, chamferLeftXEnd, yStart, borderColor)
+        DrawLine(xStart + chamferSize, yStart, chamferRightXStart, yStart, borderColor)
+        DrawLine(chamferRightXStart, yStart, chamferRightXEnd, yStart + chamferSize, borderColor)
+        DrawLine(xEnd, yStart + chamferSize, xEnd, yEnd, borderColor)
 
         let isTinyEvent = xEnd - xStart <= 40
         let hPadding: Int32 = isTinyEvent ? 3 : 5

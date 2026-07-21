@@ -22,6 +22,7 @@ RestartSec=2
 WantedBy=multi-user.target
 
 # sudo systemctl daemon-reload
+# sudo systemctl enable calendar-clock-swift.service
 # sudo systemctl start calendar-clock-swift.service
 # systemctl status calendar-clock-swift.service
 # sudo journalctl -u calendar-clock-swift.service

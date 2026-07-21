@@ -158,7 +158,31 @@ Select `Language/Regional Options`, and set appropriate `Timezone`
     sudo ngrok service start
     ```
 
-### APP run
-```bash
-.build/aarch64-unknown-linux-gnu/release/CalendarClock
-```
+### Setup virtual keyboard
+Raylib fails to detect Bluetooth keyboards connected after the application has launched. As a workaround, we need to set up a virtual keyboard that remains permanently available.
+
+1. Install `python3-evdev`
+    ```bash
+    sudo apt install python3-evdev
+    ```
+2. Copy `virtual-keyboard.py` to `/home/dietpi/calendar-clock-swift`
+3. Add systemd service: copy `virtual-keyboard.service` to `/etc/systemd/system/virtual-keyboard.service`
+4. Enable the service
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable virtual-keyboard.service
+    sudo systemctl start virtual-keyboard.service
+    ```
+
+### Copy config files 
+from repository to `/home/dietpi/calendar-clock-swift/config`
+
+### Setup application auto run
+
+1. Add systemd service: copy `autostart.service` to `/etc/systemd/system/calendar-clock-swift.service`
+2. Enable the service
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable calendar-clock-swift.service
+    sudo systemctl start calendar-clock-swift.service
+    ```
