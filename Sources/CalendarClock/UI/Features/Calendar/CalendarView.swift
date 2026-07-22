@@ -29,6 +29,7 @@ struct CalendarView {
                         }
                     }
                 }
+                ActiveEventAlarmEffect.draw(time: time, appState: _appState, eventsOrder: eventsOrder)
                 CalendarTimeComponent.draw(
                     time: time, 
                     appState: _appState,

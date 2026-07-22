@@ -53,7 +53,7 @@ struct CalendarEventCardComponent {
         let xStart = startPosition - marginLeft
         let xEnd = endPosition - marginLeft
         let yEnd = Int32(CONTENT_HEIGHT)
-        var yStart = Int32(CONTENT_HEIGHT / 2)
+        var yStart = Int32(CONTENT_HEIGHT - EVENTS_HEIGHT)
 
         // less than 100%
         if positionedEvent.height < 100 {
