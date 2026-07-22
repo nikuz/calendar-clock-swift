@@ -12,7 +12,7 @@ let DAY_START_TIME: Float = 6 * 60 + 30 // minutes
 let DAY_END_TIME: Float = 21 * 60 // minutes
 
 let EVENTS_ZOOM: Float = 1.35 // times
-let EVENTS_HEIGHT: Float = SCREEN_HEIGHT / 2
+let EVENTS_HEIGHT: Float = CONTENT_HEIGHT / 2
 
 let MORNING_HOUR = 7
 let EVENING_HOUR = 20

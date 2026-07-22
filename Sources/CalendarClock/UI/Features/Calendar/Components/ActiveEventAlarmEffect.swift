@@ -7,8 +7,8 @@ import CRayLib
 @MainActor
 struct ActiveEventAlarmEffect {
     static func draw(
-        time: CalendarUIUtils.TimeInfo, 
-        appState: AppStateData, 
+        time: CalendarUIUtils.TimeInfo,
+        appState: AppStateData,
         eventsOrder: CalendarUIUtils.EventsOrder,
     ) {
         guard let activeEvent = eventsOrder.activeEvent,
@@ -53,22 +53,26 @@ struct ActiveEventAlarmEffect {
         )
 
         let x = startPosition - marginLeft + (endPosition - startPosition) / 2
-        let y = SCREEN_HEIGHT - (SCREEN_HEIGHT - EVENTS_HEIGHT) / 2
+        let y = CONTENT_HEIGHT - (CONTENT_HEIGHT - EVENTS_HEIGHT) / 2
         let circleDistance: Int32 = 30
         let circlesAmount = max(Int32(SCREEN_WIDTH) - x, x) / circleDistance + 1
 
-        var brightnessFactor = appState.brightness.dayFactor
+        let baseBrightnessFactor = appState.brightness.dayFactor
+        var brightnessFactor = baseBrightnessFactor
         for index in 1...circlesAmount {
             let radius = Float(index * circleDistance) + Float(expansionRadius)
             let itemColor = ColorBrightness(CALENDAR_EVENT_COLORS[activeEvent.index], brightnessFactor)
             DrawRingLines(Vector2(x: Float(x), y: y), radius, radius + 1, 0, 360, 100, itemColor)
-            brightnessFactor -= 0.03
+            brightnessFactor = brightnessFactor + (baseBrightnessFactor / Float(circlesAmount))
+            if brightnessFactor <= -1 {
+                break
+            }
         }
 
         let curRenderingTime = GetTime()
 
         if curRenderingTime - lastRadiusExtensionTime >= 0.02 {
-            expansionRadius += 1
+            expansionRadius += 3
             lastRadiusExtensionTime = curRenderingTime
         }
         if expansionRadius == circleDistance {
