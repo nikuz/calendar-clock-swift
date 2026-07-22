@@ -35,6 +35,7 @@ struct CalendarView {
                     appState: _appState,
                     eventsOrder: eventsOrder,
                 )
+                ActiveEventAlarm.play(appState: _appState, eventsOrder: eventsOrder)
                 for (index, event) in payload.positionedEvents.enumerated() {
                     CalendarEventCardComponent.draw(
                         positionedEvent: event, 

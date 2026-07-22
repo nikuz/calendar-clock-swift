@@ -34,7 +34,8 @@ let package = Package(
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ],
             resources: [
-                .copy("Resources/fonts")
+                .copy("Resources/fonts"),
+                .copy("Resources/sounds"),
             ],
             linkerSettings: [
                 .unsafeFlags(["-L\(rayLibPath)", "-lraylib"]),

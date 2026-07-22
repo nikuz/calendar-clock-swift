@@ -5,10 +5,12 @@ import CRayLib
 struct Renderer {
     private let appState: AppState
     private let uiFonts: UIFonts
+    private let uiSounds: UISounds
 
     init(appState: AppState) {
         self.appState = appState
         self.uiFonts = UIFonts()
+        self.uiSounds = UISounds()
     }
 
     func start() {
@@ -20,6 +22,8 @@ struct Renderer {
 
         InitWindow(Int32(SCREEN_WIDTH), Int32(SCREEN_HEIGHT), "Calendar Clock")
         SetTargetFPS(UI_FPS)
+        InitAudioDevice()
+
         #if DEBUG
             SetExitKey(Int32(KEY_Q.rawValue))
         #else 
@@ -27,9 +31,11 @@ struct Renderer {
         #endif
         
         uiFonts.load()
+        uiSounds.load()
 
         defer {
             uiFonts.unload()
+            uiSounds.unload()
             CloseWindow()
         }
 

@@ -12,6 +12,7 @@ struct ActiveEventAlarmEffect {
         eventsOrder: CalendarUIUtils.EventsOrder,
     ) {
         guard let activeEvent = eventsOrder.activeEvent,
+            activeEvent.event.id != appState.calendar.confirmedApproachingEventId,
             let currentHour = time.components.hour,
             let currentMinute = time.components.minute,
             let activeEventStartDate = activeEvent.event.start.date,
