@@ -122,32 +122,36 @@ struct CalendarEventCardComponent {
         DrawLine(xEnd, yStart + chamferSize, xEnd, yEnd, borderColor)
 
         let isTinyEvent = xEnd - xStart <= 40
-        let hPadding: Int32 = isTinyEvent ? 3 : 5
+        let hPadding: Int32 = isTinyEvent ? 3 : 4
         let vPadding: Int32 = 5
         let lineHeight: Int32 = 10
         var timeSpace: Int32 = 20
-        let boxWidth = xEnd - xStart - hPadding * 2
         let unscii8Font = UIFonts.getFont(.unscii8)
         let silkscreen3x7Font = UIFonts.getFont(.silkscreen3x7)
         let font = isTinyEvent ? silkscreen3x7Font : unscii8Font
         let fontSize: Int32 = isTinyEvent ? 9 : 8
         let characterWidth: Int32 = isTinyEvent ? 4 : 8
+        var boxWidth = xEnd - xStart - hPadding * 2
+
+        while boxWidth % fontSize != 0 {
+            boxWidth += 1
+        }
 
         // time
         var eventStartTimeString = "\(CalendarUIUtils.formatTo12H(eventStartHour))"
         if (eventStartMinute != 0) {
             eventStartTimeString += ":\(eventStartMinute)"
         }
-        let eventStartTimeStringSize = MeasureTextEx(font, eventStartTimeString, Float(fontSize), 0)
+        let eventStartTimeStringSize = Int32(eventStartTimeString.count) * fontSize
         var eventEndTimeString = "\(CalendarUIUtils.formatTo12H(eventEndHour))"
         if (eventEndMinute != 0) {
             eventEndTimeString += ":\(eventEndMinute)"
         }
-        let eventEndTimeStringSize = MeasureTextEx(font, eventEndTimeString, Float(fontSize), 0)
+        let eventEndTimeStringSize = Int32(eventEndTimeString.count) * fontSize
 
-        var endTimeX = Float(xStart + hPadding + boxWidth - Int32(eventEndTimeStringSize.x))
+        var endTimeX = Float(xStart + hPadding + boxWidth - eventEndTimeStringSize)
         var endTimeY = Float(yStart + vPadding)
-        if eventStartTimeStringSize.x + eventEndTimeStringSize.x > Float(boxWidth) {
+        if eventStartTimeStringSize + eventEndTimeStringSize + fontSize > boxWidth {
             endTimeX = Float(xStart + hPadding)
             endTimeY = Float(yStart + vPadding + lineHeight)
             timeSpace += lineHeight
@@ -172,13 +176,13 @@ struct CalendarEventCardComponent {
 
         // summary
         let summaryBoxHeight = yEnd - yStart - timeSpace
-        let summary = event.summary ?? "(untitled)"
+        let summary = (event.summary ?? "(untitled)").trimmingPrefix(" ")
         var lines: [String] = []
         var curLine = ""
         var curLineWidth: Int32 = 0
 
         for (index, character) in summary.enumerated() {
-            if curLineWidth + characterWidth >= boxWidth || index == summary.count - 1 {
+            if curLineWidth + characterWidth > boxWidth || index == summary.count - 1 {
                 if index == summary.count - 1 {
                     curLine.append(character)
                 }
