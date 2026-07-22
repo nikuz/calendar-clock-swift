@@ -76,8 +76,15 @@ ssh-add "$SSH_KEY"
 # build
 if swift build -c release --static-swift-stdlib; then
     # Only copy if the build command returned an exit code of 0
-    echo "Uploading ..."
+    echo -e "\nCreating remote repository ..."
     ssh "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p ${REMOTE_FULL_PATH}"
+
+    echo -e "\nUploading binary ..."
     scp ".build/aarch64-unknown-linux-gnu/release/${BINARY_NAME}" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_FULL_PATH}"
+    
+    echo -e "\nUploading resources ..."
     scp -r ".build/aarch64-unknown-linux-gnu/release/${BINARY_NAME}_${BINARY_NAME}.resources" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_FULL_PATH}"
+    
+    echo -e "\nUploading Configs ..."
+    scp -r "config" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_BASE_PATH}"
 fi
