@@ -108,6 +108,34 @@ dietpi-config
 ```
 Select `Display Options`, and make sure the `KMS/DRM` is `[On]`.
 
+### Enable audio
+```bash
+dietpi-config
+```
+Navigate to `Audio Options`, and select `Enable: Install ALSA to enable audio capabilities`. Wait for the next screen and select `Sound card` option. On the next screen select `Onboard 3.5mm output`. 
+
+Head back to the previous screen and make sure that the `Auto-conversion` is enabled. Exit the config and reboot.
+
+Correct the `dtoverlay` entry in the config.txt
+```bash
+sudo nano /boot/firmware/config.txt
+```
+```diff
+-dtoverlay=vc4-kms-v3d,noaudio
++dtoverlay=vc4-fkms-v3d
+```
+
+Reboot.
+
+Make sure that `Headphones` are listed by the `aplay -l` command:
+```bash
+aplay -l
+**** List of PLAYBACK Hardware Devices ****
+card 0: Headphones [bcm2835 Headphones], device 0: bcm2835 Headphones [bcm2835 Headphones]
+  Subdevices: 7/8
+
+```
+
 ### Switch to OpenSSH for `scp` support
 ```bash
 dietpi-software
