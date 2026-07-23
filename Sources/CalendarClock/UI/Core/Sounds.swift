@@ -1,8 +1,9 @@
 import Foundation
 import CRayLib
 
-@MainActor enum UISoundName: CaseIterable {
-    case eventAlarm, eventApproaching
+@MainActor enum UISoundName: String, CaseIterable {
+    case eventAlarm = "event-alarm"
+    case eventApproaching = "event-approaching-alarm"
 }
 
 @MainActor private struct UISoundsList {
@@ -21,34 +22,27 @@ import CRayLib
     }
 }
 
-@MainActor private var uiSounds = UISoundsList { name in
-    switch name {
-        case .eventAlarm: LoadSound("")
-        case .eventApproaching: LoadSound("")
-    }
-}
+@MainActor private var uiSounds = UISoundsList { _ in Sound() }
 
 @MainActor
 class UISounds {
-    private let eventAlarmPath: String
-    private let eventApproachingPath: String
-
-    init() {
-        guard let eventAlarmPath = Bundle.module.path(forResource: "event-alarm", ofType: "wav", inDirectory: "sounds"),
-            let eventApproachingPath = Bundle.module.path(forResource: "event-approaching-alarm", ofType: "wav", inDirectory: "sounds")
+    private func getSoundPath(for soundName: UISoundName) -> String {
+        guard
+            let path = Bundle.module.path(
+                forResource: soundName.rawValue,
+                ofType: "wav",
+                inDirectory: "sounds"
+            )
         else {
-            fatalError("Sound not found")
+            fatalError("Missing sound '\(soundName.rawValue)'")
         }
-        self.eventAlarmPath = eventAlarmPath
-        self.eventApproachingPath = eventApproachingPath
+
+        return path
     }
 
     func load() {
         uiSounds = UISoundsList { name in
-            switch name {
-                case .eventAlarm: LoadSound(eventAlarmPath)
-                case .eventApproaching: LoadSound(eventApproachingPath)
-            }
+            LoadSound(getSoundPath(for: name))
         }
     }
 

@@ -1,12 +1,10 @@
 import Foundation
 import CRayLib
 
-@MainActor
 enum UIShaderName: String, CaseIterable {
     case waveEffect = "wave-effect"
 }
 
-@MainActor
 private struct UIShadersList {
     private let shaders: [UIShaderName: Shader]
 
@@ -25,10 +23,7 @@ private struct UIShadersList {
     }
 }
 
-@MainActor
-private var uiShaders = UIShadersList { _ in
-    Shader()
-}
+@MainActor private var uiShaders = UIShadersList { _ in Shader() }
 
 @MainActor
 final class UIShaders {

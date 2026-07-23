@@ -4,13 +4,12 @@ import CRayLib
 @MainActor
 struct Renderer {
     private let appState: AppState
-    private let uiFonts: UIFonts
+    private let uiFonts = UIFonts()
     private let uiSounds: UISounds
     private let uiShaders: UIShaders
 
     init(appState: AppState) {
         self.appState = appState
-        self.uiFonts = UIFonts()
         self.uiSounds = UISounds()
         self.uiShaders = UIShaders()
     }
