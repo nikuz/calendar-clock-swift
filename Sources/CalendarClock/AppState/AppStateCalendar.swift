@@ -34,19 +34,35 @@ enum AppStateCalendar: Sendable {
 
 struct CalendarPayload: Sendable {
     var events: [CalendarEvent] = [] {
-        didSet { recalculateLayout() }
+        didSet { processEvents() }
     }
     var confirmedApproachingEventId: String?
 
     private(set) var positionedEvents: [PositionedCalendarEvent] = []
 
-    private mutating func recalculateLayout() {
-        let sorted = events.sorted { 
-            guard let firstStartDate = $0.start.date, let secondStartDate = $1.start.date else {
+    private mutating func processEvents() {
+        let sanitized = events.map { event in
+            if event.summary != nil {
+                var updatedEvent = event
+                updatedEvent.summary = (event.summary ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .replacing(/\p{Emoji_Presentation}/, with: "")
+                return updatedEvent
+            }
+            return event
+        }
+
+        let sorted = sanitized.sorted {
+            guard
+                let firstStartDate = $0.start.date,
+                let secondStartDate = $1.start.date
+            else {
                 return false
             }
+
             return firstStartDate < secondStartDate
         }
+
         positionedEvents = CalendarEventLayout.calculateHeights(for: sorted)
     }
 }

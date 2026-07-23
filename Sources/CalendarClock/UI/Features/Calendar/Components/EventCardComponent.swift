@@ -84,6 +84,7 @@ struct CalendarEventCardComponent {
             borderColor = color
         }
 
+        let boxWidth = xEnd - xStart
         let chamferSize: Int32 = 4
         let lineThickness: Int32 = 1
 
@@ -99,7 +100,7 @@ struct CalendarEventCardComponent {
         #endif
 
         // filling
-        DrawRectangle(xStart, yStart + chamferSize, xEnd - xStart, yEnd - yStart, fill)
+        DrawRectangle(xStart, yStart + chamferSize, boxWidth, yEnd - yStart, fill)
         DrawRectangle(chamferLeftXEnd, yStart, chamferRightXStart - chamferLeftXEnd, yEnd - yStart, fill)
         DrawTriangle(
             Vector2(x: Float(chamferLeftXEnd), y: Float(yStart + chamferSize)),
@@ -121,7 +122,7 @@ struct CalendarEventCardComponent {
         DrawLine(chamferRightXStart, yStart, chamferRightXEnd, yStart + chamferSize, borderColor)
         DrawLine(xEnd, yStart + chamferSize, xEnd, yEnd, borderColor)
 
-        let isTinyEvent = xEnd - xStart <= 40
+        let isTinyEvent = boxWidth <= 40
         let hPadding: Int32 = isTinyEvent ? 3 : 4
         let vPadding: Int32 = 5
         let lineHeight: Int32 = 10
@@ -131,10 +132,10 @@ struct CalendarEventCardComponent {
         let font = isTinyEvent ? silkscreen3x7Font : unscii8Font
         let fontSize: Int32 = isTinyEvent ? 9 : 8
         let characterWidth: Int32 = isTinyEvent ? 4 : 8
-        var boxWidth = xEnd - xStart - hPadding * 2
+        var boxContentWidth = boxWidth - hPadding * 2
 
-        while boxWidth % fontSize != 0 {
-            boxWidth += 1
+        while boxContentWidth % fontSize != 0 {
+            boxContentWidth += 1
         }
 
         // time
@@ -149,9 +150,9 @@ struct CalendarEventCardComponent {
         }
         let eventEndTimeStringSize = Int32(eventEndTimeString.count) * fontSize
 
-        var endTimeX = Float(xStart + hPadding + boxWidth - eventEndTimeStringSize)
+        var endTimeX = Float(xStart + hPadding + boxContentWidth - eventEndTimeStringSize)
         var endTimeY = Float(yStart + vPadding)
-        if eventStartTimeStringSize + eventEndTimeStringSize + fontSize > boxWidth {
+        if eventStartTimeStringSize + eventEndTimeStringSize + fontSize > boxContentWidth {
             endTimeX = Float(xStart + hPadding)
             endTimeY = Float(yStart + vPadding + lineHeight)
             timeSpace += lineHeight
@@ -176,18 +177,31 @@ struct CalendarEventCardComponent {
 
         // summary
         let summaryBoxHeight = yEnd - yStart - timeSpace
-        let summary = (event.summary ?? "(untitled)").trimmingPrefix(" ")
+        let summary = event.summary ?? "(untitled)"
         var lines: [String] = []
         var curLine = ""
         var curLineWidth: Int32 = 0
+        
+        // content filling
+        // DrawRectangle(xStart + hPadding, yStart + timeSpace, boxContentWidth, yEnd - yStart - timeSpace, .rayWhite)
 
         for (index, character) in summary.enumerated() {
-            if curLineWidth + characterWidth > boxWidth || index == summary.count - 1 {
+            if curLineWidth + characterWidth > boxContentWidth || index == summary.count - 1 {
                 if index == summary.count - 1 {
-                    curLine.append(character)
+                    // if adding last character exceeds the content width,
+                    // append current line and add one more line with last character
+                    if curLineWidth + characterWidth * 2 > boxContentWidth {
+                        curLine.trimPrefix(" ")
+                        lines.append(contentsOf: [curLine, "\(character)"])
+                    } else {
+                        curLine.append(character)
+                        curLine.trimPrefix(" ")
+                        lines.append(curLine)
+                    }
+                } else {
+                    curLine.trimPrefix(" ")
+                    lines.append(curLine)
                 }
-                curLine.trimPrefix(" ")
-                lines.append(curLine)
                 curLine = ""
                 curLineWidth = 0
                 if Int32(lines.count) * lineHeight >= summaryBoxHeight {
@@ -202,7 +216,7 @@ struct CalendarEventCardComponent {
             DrawTextEx(
                 font,
                 line,
-                Vector2(x: Float(xStart + hPadding), y: Float(yStart + timeSpace + (10 * Int32(index)))),
+                Vector2(x: Float(xStart + hPadding), y: Float(yStart + timeSpace + (lineHeight * Int32(index)))),
                 Float(fontSize),
                 0,
                 color

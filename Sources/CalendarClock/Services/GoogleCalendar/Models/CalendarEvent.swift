@@ -6,7 +6,7 @@ struct CalendarEventsResponse: Decodable, Sendable {
 
 struct CalendarEvent: Decodable, Identifiable, Sendable {
     let id: String
-    let summary: String?  
+    var summary: String?  
     let description: String?
     let location: String?
     let start: EventDateTime
