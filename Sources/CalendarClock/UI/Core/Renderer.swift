@@ -43,31 +43,7 @@ struct Renderer {
             CloseWindow()
         }
 
-        // let target = LoadRenderTexture(Int32(SCREEN_WIDTH), Int32(CONTENT_HEIGHT))
-        // let shader = UIShaders.getShader(.waveEffect)
-
         while !WindowShouldClose() {
-            // // 2. Draw scene to render texture
-            // BeginTextureMode(target)
-            //     ClearBackground(.rayWhite)
-            //     DrawRectangle(50, 24, 80, 80, .darkBlue)
-            //     DrawCircle(250, 64, 40, .maroon)
-            //     DrawText("SWIFT SHADER RUNNING AT 1024x128", 340, 54, 20, .black)
-            // EndTextureMode()
-
-            // BeginDrawing()
-            //     ClearBackground(.black)
-
-            //     BeginShaderMode(shader)
-            //         // Note: -Float(target.texture.height) flips the texture right-side up
-            //         let sourceRec = Rectangle(x: 0, y: 0, width: Float(target.texture.width), height: -Float(target.texture.height))
-            //         let position = Vector2(x: 0, y: 0)
-            //         DrawTextureRec(target.texture, sourceRec, position, .white)
-            //     EndShaderMode()
-
-            //     DrawFPS(10, 10)
-            // EndDrawing()
-
             BeginDrawing()
             ClearBackground(.black)
 
