@@ -1,10 +1,10 @@
 let SCREEN_WIDTH: Float = 1024 // px
-#if os(macOS)
-    let SCREEN_HEIGHT: Float = 128 // px
-    let UI_FPS: Int32 = 60
+#if os(Linux)
+    let SCREEN_HEIGHT: Float = 768  // px
+    let UI_FPS: Int32 = 30
 #else
-    let SCREEN_HEIGHT: Float = 768 // px
-    let UI_FPS: Int32 = 10
+    let SCREEN_HEIGHT: Float = 128  // px
+    let UI_FPS: Int32 = 60
 #endif
 let CONTENT_HEIGHT: Float = 128 // px
 
