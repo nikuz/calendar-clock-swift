@@ -1,19 +1,23 @@
 import Foundation
 import CRayLib
 
-@MainActor enum UIShaderName: CaseIterable {
-    case waveEffect
+@MainActor
+enum UIShaderName: String, CaseIterable {
+    case waveEffect = "wave-effect"
 }
 
-@MainActor private struct UIShadersList {
+@MainActor
+private struct UIShadersList {
     private let shaders: [UIShaderName: Shader]
 
     init(shaderFor: (UIShaderName) -> Shader) {
-        var result: [UIShaderName: Shader] = [:]
-        for name in UIShaderName.allCases {
-            result[name] = shaderFor(name)
+        var shaders: [UIShaderName: Shader] = [:]
+
+        for shader in UIShaderName.allCases {
+            shaders[shader] = shaderFor(shader)
         }
-        self.shaders = result
+
+        self.shaders = shaders
     }
 
     subscript(name: UIShaderName) -> Shader {
@@ -21,29 +25,40 @@ import CRayLib
     }
 }
 
-@MainActor private var uiShaders = UIShadersList { name in
-    switch name {
-        case .waveEffect: Shader()
-    }
+@MainActor
+private var uiShaders = UIShadersList { _ in
+    Shader()
 }
 
 @MainActor
-class UIShaders {
-    private let waveEffectPath: String
+final class UIShaders {
+    private let shaderDirectory: String
 
     init() {
-        guard let waveEffectPath = Bundle.module.path(forResource: "wave-effect", ofType: "fs", inDirectory: "shaders")
+        #if os(Linux)
+            shaderDirectory = "shaders/glsl100"
+        #else
+            shaderDirectory = "shaders/glsl330"
+        #endif
+    }
+
+    private func fragmentShaderPath(for shader: UIShaderName) -> String {
+        guard
+            let path = Bundle.module.path(
+                forResource: shader.rawValue,
+                ofType: "fs",
+                inDirectory: shaderDirectory
+            )
         else {
-            fatalError("Shader not found")
+            fatalError("Missing shader '\(shader.rawValue)' in \(shaderDirectory)")
         }
-        self.waveEffectPath = waveEffectPath
+
+        return path
     }
 
     func load() {
-        uiShaders = UIShadersList { name in
-            switch name {
-                case .waveEffect: return LoadShader(nil, waveEffectPath)
-            }
+        uiShaders = UIShadersList { shader in
+            LoadShader(nil, fragmentShaderPath(for: shader))
         }
     }
 

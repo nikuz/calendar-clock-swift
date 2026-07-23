@@ -32,20 +32,24 @@ void main()
     float ringMap = mod(dist - animationOffset, circleDistance);
 
     // Create a sharp 1-pixel-wide ring using smoothstep for perfect anti-aliased edges
-    float ringThickness = 1.0;
-    float ringAlpha = smoothstep(ringThickness, 0.0, ringMap);
+    float phase = mod(dist - animationOffset, circleDistance);
+    float d = abs(phase - circleDistance * 0.5);
+    float ringHalfWidth = 0.5;
+    float ringAlpha = 1.0 - smoothstep(
+        ringHalfWidth,
+        ringHalfWidth + 0.5,
+        d
+    );
 
     // Calculate brightness attenuation matching your loop logic
     // Rings farther away dynamically shift in brightness/alpha
     float maxDistance = max(screenSize.x - centerPoint.x, centerPoint.x);
     float distanceFactor = dist / maxDistance;
     
-    // Falloff calculation replicating your 'brightnessFactor' stepping
-    float dynamicBrightness = baseBrightness + distanceFactor;
-    
-    // Combine base event color, vertex blending, ring placement masks, and brightness calculations
+    float dynamicBrightness = mix(0.3, 1.0, 1.0 - distanceFactor);
+
     vec4 finalRingColor = baseColor * fragColor;
-    finalRingColor.rgb += vec3(dynamicBrightness * 0.2); // Apply brightness adjustments subtly
+    finalRingColor.rgb *= dynamicBrightness;
 
     // Output final composition: Only display color where a ring exists
     finalColor = vec4(finalRingColor.rgb, ringAlpha * finalRingColor.a);
