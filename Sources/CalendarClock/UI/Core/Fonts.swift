@@ -23,9 +23,9 @@ import CRayLib
 
 @MainActor private var uiFonts = UIFontsList { name in
     switch name {
-        case .unscii16: return GetFontDefault()
-        case .unscii8: return GetFontDefault()
-        case .silkscreen3x7: return GetFontDefault()
+        case .unscii16: GetFontDefault()
+        case .unscii8: GetFontDefault()
+        case .silkscreen3x7: GetFontDefault()
     }
 }
 
@@ -50,9 +50,9 @@ class UIFonts {
     func load() {
         uiFonts = UIFontsList { name in
             switch name {
-                case .unscii16: return LoadFontEx(unscii16FontPath, 16, nil, 250)
-                case .unscii8: return LoadFontEx(unscii8FontPath, 8, nil, 250)
-                case .silkscreen3x7: return LoadFontEx(silkscreen3x7FontPath, 9, nil, 250)
+                case .unscii16: LoadFontEx(unscii16FontPath, 16, nil, 250)
+                case .unscii8: LoadFontEx(unscii8FontPath, 8, nil, 250)
+                case .silkscreen3x7: LoadFontEx(silkscreen3x7FontPath, 9, nil, 250)
             }
         }
     }

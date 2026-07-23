@@ -8,7 +8,7 @@ import CRayLib
 @MainActor private struct UISoundsList {
     private let sounds: [UISoundName: Sound]
 
-    init(soundFor: (UISoundName) -> Sound?) {
+    init(soundFor: (UISoundName) -> Sound) {
         var result: [UISoundName: Sound] = [:]
         for name in UISoundName.allCases {
             result[name] = soundFor(name)
@@ -16,15 +16,15 @@ import CRayLib
         self.sounds = result
     }
 
-    subscript(name: UISoundName) -> Sound? {
-        sounds[name]
+    subscript(name: UISoundName) -> Sound {
+        sounds[name]!
     }
 }
 
 @MainActor private var uiSounds = UISoundsList { name in
     switch name {
-        case .eventAlarm: nil
-        case .eventApproaching: nil
+        case .eventAlarm: LoadSound("")
+        case .eventApproaching: LoadSound("")
     }
 }
 
@@ -46,21 +46,19 @@ class UISounds {
     func load() {
         uiSounds = UISoundsList { name in
             switch name {
-                case .eventAlarm: return LoadSound(eventAlarmPath)
-                case .eventApproaching: return LoadSound(eventApproachingPath)
+                case .eventAlarm: LoadSound(eventAlarmPath)
+                case .eventApproaching: LoadSound(eventApproachingPath)
             }
         }
     }
 
     func unload() {
         for name in UISoundName.allCases {
-            if let sound = uiSounds[name] {
-                UnloadSound(sound)
-            }
+            UnloadSound(uiSounds[name])
         }
     }
 
-    static func getSound(_ name: UISoundName) -> Sound? {
+    static func getSound(_ name: UISoundName) -> Sound {
         return uiSounds[name]
     }
 }

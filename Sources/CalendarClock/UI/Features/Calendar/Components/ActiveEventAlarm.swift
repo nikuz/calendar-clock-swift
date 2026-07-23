@@ -7,12 +7,8 @@ struct ActiveEventAlarm {
         appState: AppStateData,
         eventsOrder: CalendarUIUtils.EventsOrder,
     ) {
-        guard let eventApproachingSound = UISounds.getSound(.eventApproaching),
-            let eventAlarmSound = UISounds.getSound(.eventAlarm)
-        else {
-            return
-        }
-
+        let eventApproachingSound = UISounds.getSound(.eventApproaching)
+        let eventAlarmSound = UISounds.getSound(.eventAlarm)
         let confirmedEvent = appState.calendar.confirmedApproachingEventId
 
         if let approachingEvent = eventsOrder.approachingEvent {

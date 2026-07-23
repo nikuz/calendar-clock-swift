@@ -36,6 +36,7 @@ let package = Package(
             resources: [
                 .copy("Resources/fonts"),
                 .copy("Resources/sounds"),
+                .copy("Resources/shaders"),
             ],
             linkerSettings: [
                 .unsafeFlags(["-L\(rayLibPath)", "-lraylib"]),
