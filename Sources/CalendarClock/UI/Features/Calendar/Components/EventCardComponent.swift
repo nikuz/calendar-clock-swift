@@ -143,12 +143,12 @@ struct CalendarEventCardComponent {
         if (eventStartMinute != 0) {
             eventStartTimeString += ":\(eventStartMinute)"
         }
-        let eventStartTimeStringSize = Int32(eventStartTimeString.count) * fontSize
+        let eventStartTimeStringSize = Int32(eventStartTimeString.count) * characterWidth
         var eventEndTimeString = "\(CalendarUIUtils.formatTo12H(eventEndHour))"
         if (eventEndMinute != 0) {
             eventEndTimeString += ":\(eventEndMinute)"
         }
-        let eventEndTimeStringSize = Int32(eventEndTimeString.count) * fontSize
+        let eventEndTimeStringSize = Int32(eventEndTimeString.count) * characterWidth
 
         var endTimeX = Float(xStart + hPadding + boxContentWidth - eventEndTimeStringSize)
         var endTimeY = Float(yStart + vPadding)
@@ -181,6 +181,7 @@ struct CalendarEventCardComponent {
         var lines: [String] = []
         var curLine = ""
         var curLineWidth: Int32 = 0
+        var isFullSummaryFit = false
         
         // content filling
         // DrawRectangle(xStart + hPadding, yStart + timeSpace, boxContentWidth, yEnd - yStart - timeSpace, .rayWhite)
@@ -189,7 +190,8 @@ struct CalendarEventCardComponent {
             if curLineWidth + characterWidth > boxContentWidth || index == summary.count - 1 {
                 if index == summary.count - 1 {
                     // if adding last character exceeds the content width,
-                    // append current line and add one more line with last character
+                    // append current line to the list of lines and,
+                    // add one more line that contains only last character
                     if curLineWidth + characterWidth * 2 > boxContentWidth {
                         curLine.trimPrefix(" ")
                         lines.append(contentsOf: [curLine, "\(character)"])
@@ -198,13 +200,18 @@ struct CalendarEventCardComponent {
                         curLine.trimPrefix(" ")
                         lines.append(curLine)
                     }
+                    isFullSummaryFit = true
                 } else {
                     curLine.trimPrefix(" ")
                     lines.append(curLine)
                 }
                 curLine = ""
                 curLineWidth = 0
-                if Int32(lines.count) * lineHeight >= summaryBoxHeight {
+                if Int32(lines.count + 1) * lineHeight >= summaryBoxHeight {
+                    if !isFullSummaryFit {
+                        let lastLine = lines[lines.count - 1]
+                        lines[lines.count - 1] = lastLine.dropLast(3) + "..."
+                    }
                     break
                 }
             }
@@ -212,11 +219,13 @@ struct CalendarEventCardComponent {
             curLineWidth += characterWidth
         }
 
-        for (index, line) in lines.enumerated() {
+        for (index, line) in lines.reversed().enumerated() {
+            let lineX = Float(xStart + hPadding)
+            let lineY = Float(yEnd - (lineHeight * Int32(index + 1)))
             DrawTextEx(
                 font,
                 line,
-                Vector2(x: Float(xStart + hPadding), y: Float(yStart + timeSpace + (lineHeight * Int32(index)))),
+                Vector2(x: lineX, y: lineY),
                 Float(fontSize),
                 0,
                 color
