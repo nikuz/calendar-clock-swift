@@ -29,6 +29,12 @@ struct CalendarView {
                         }
                     }
                 }
+                if KEY_B.isPressed {
+                    appState.update { state in
+                        state.backgroundVisible = !state.backgroundVisible
+                    }
+                }
+                CalendarBackground.draw(time: time, appState: _appState)
                 ActiveEventAlarmEffect.draw(time: time, appState: _appState, eventsOrder: eventsOrder)
                 CalendarTimeComponent.draw(
                     time: time, 

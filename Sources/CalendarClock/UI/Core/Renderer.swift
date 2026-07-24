@@ -5,12 +5,12 @@ import CRayLib
 struct Renderer {
     private let appState: AppState
     private let uiFonts = UIFonts()
-    private let uiSounds: UISounds
+    private let uiSounds = UISounds()
     private let uiShaders: UIShaders
+    private let uiTextures = UITextures()
 
     init(appState: AppState) {
         self.appState = appState
-        self.uiSounds = UISounds()
         self.uiShaders = UIShaders()
     }
 
@@ -34,11 +34,13 @@ struct Renderer {
         uiFonts.load()
         uiSounds.load()
         uiShaders.load()
+        uiTextures.load()
 
         defer {
             uiFonts.unload()
             uiSounds.unload()
             uiShaders.unload()
+            uiTextures.unload()
             CloseWindow()
         }
 
