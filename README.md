@@ -202,6 +202,26 @@ Raylib fails to detect Bluetooth keyboards connected after the application has l
     sudo systemctl start virtual-keyboard.service
     ```
 
+### Connect Bluetooth keyboard
+1. Enable Bluetooth
+    ```bash
+    dietpi-config
+    ```
+    Go to `Advanced Options` and make sure that Bluetooth is `On`.
+2. Pair bluetooth keyboard
+    ```bash
+    bluetoothctl
+    scan on
+    pair YOUR_DEVICE_MAC
+    trust YOUR_DEVICE_MAC
+    connect YOUR_DEVICE_MAC
+    ```
+5. Check the keyboard is working:
+    ```bash
+    evtest
+    ```
+    Select your keyboard ID and press keyboard keys to see their codes.
+
 ### Copy config files 
 from repository to `/home/dietpi/calendar-clock-swift/config`
 
