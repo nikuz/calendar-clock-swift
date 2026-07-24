@@ -22,7 +22,8 @@ void main()
 
     // Dynamic configuration matching your Swift CPU logic
     float circleDistance = 30.0; 
-    float speed = 50.0; // Controls how fast the expansion moves (pixels per second)
+    float speed = 20.0; // Controls how fast the expansion moves (pixels per second)
+
 
     // Calculate expanding animation offset based on elapsed time
     float animationOffset = mod(time * speed, circleDistance);

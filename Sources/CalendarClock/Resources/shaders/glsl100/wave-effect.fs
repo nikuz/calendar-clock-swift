@@ -18,7 +18,7 @@ void main()
     float dist = distance(pixelPos, centerPoint);
 
     float circleDistance = 30.0;
-    float speed = 50.0;
+    float speed = 20.0;
 
     float animationOffset = mod(time * speed, circleDistance);
     float ringMap = mod(dist - animationOffset, circleDistance);
