@@ -9,6 +9,8 @@ struct CalendarEventCardComponent {
         time: CalendarUIUtils.TimeInfo,
         appState: AppStateData,
         eventsOrder: CalendarUIUtils.EventsOrder,
+        outsideIndex: Int32,
+        outsideIndexIncrement: () -> Void,
     ) {
         let event = positionedEvent.event
         guard let currentHour = time.components.hour,
@@ -39,6 +41,22 @@ struct CalendarEventCardComponent {
             outMin: 0,
             outMax: Int32(SCREEN_WIDTH * EVENTS_ZOOM),
         )
+
+        let xStart = startPosition - marginLeft
+        let isNightTime = CalendarUIUtils.isNightTime(time)
+        let brightnessFactor = isNightTime ? appState.brightness.nightFactor : appState.brightness.dayFactor
+        var color = ColorBrightness(CALENDAR_EVENT_COLORS[index], brightnessFactor)
+
+        // is outside visible time interval
+        if xStart > Int32(SCREEN_WIDTH) {
+            let outsideEventSize: Int32 = 6
+            let x = Int32(SCREEN_WIDTH) - outsideEventSize / 2 - outsideEventSize
+            let y = outsideEventSize / 2 + outsideEventSize + (outsideEventSize * 2 + outsideEventSize / 2) * outsideIndex
+            DrawCircle(x, y, Float(outsideEventSize), ColorAlpha(color, 0.5));
+            outsideIndexIncrement()
+            return
+        }
+
         let eventEndHour = calendar.component(.hour, from: eventEndDate)
         let eventEndMinute = calendar.component(.minute, from: eventEndDate)
         let eventEndTime = eventEndHour * 60 + eventEndMinute
@@ -49,8 +67,7 @@ struct CalendarEventCardComponent {
             outMin: 0,
             outMax: Int32(SCREEN_WIDTH * EVENTS_ZOOM)
         )
-
-        let xStart = startPosition - marginLeft
+        
         let xEnd = endPosition - marginLeft
         let yEnd = Int32(CONTENT_HEIGHT)
         var yStart = Int32(CONTENT_HEIGHT - EVENTS_HEIGHT)
@@ -61,9 +78,6 @@ struct CalendarEventCardComponent {
             yStart += Int32(yStartOnePercent * Float(100 - positionedEvent.height))
         }
 
-        let isNightTime = CalendarUIUtils.isNightTime(time)
-        let brightnessFactor = isNightTime ? appState.brightness.nightFactor : appState.brightness.dayFactor
-        var color = ColorBrightness(CALENDAR_EVENT_COLORS[index], brightnessFactor)
         var borderColor = color
         var fill: Color = .black
 

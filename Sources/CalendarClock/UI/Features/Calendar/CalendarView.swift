@@ -42,14 +42,19 @@ struct CalendarView {
                     eventsOrder: eventsOrder,
                 )
                 ActiveEventAlarm.play(appState: _appState, eventsOrder: eventsOrder)
+
+                var outsideIndex: Int32 = 0
                 for (index, event) in payload.positionedEvents.enumerated() {
                     CalendarEventCardComponent.draw(
                         positionedEvent: event, 
                         index: index, 
                         time: time, 
                         appState: _appState,
-                        eventsOrder: eventsOrder
-                    )
+                        eventsOrder: eventsOrder,
+                        outsideIndex: outsideIndex,
+                    ) {
+                        outsideIndex += 1
+                    }
                 }
 
             case .failed(let error):
