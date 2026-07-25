@@ -34,7 +34,7 @@ actor GoogleCalendarService {
             }
         }
         
-        try server.start()
+        try await server.start()
         self.webhookServer = server
         
         self.startWatchChannelsExpirationChecking()
@@ -77,9 +77,9 @@ actor GoogleCalendarService {
         }
     }
     
-    func stop() {
+    func stop() async {
         watchChannelsExpirationCheckingTask?.cancel()
         watchDateChangeTask?.cancel()
-        webhookServer?.stop()
+        await webhookServer?.stop()
     }
 }

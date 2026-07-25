@@ -15,7 +15,7 @@ let package = Package(
         .macOS("26.0")
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.101.2"),
+        .package(url: "https://github.com/swhitty/FlyingFox.git", .upToNextMajor(from: "0.27.1"))
     ],
     targets: [
         .systemLibrary(
@@ -35,8 +35,7 @@ let package = Package(
             dependencies: [
                 "COpenSSL",
                 "CRayLib",
-                .product(name: "NIO", package: "swift-nio"),
-                .product(name: "NIOHTTP1", package: "swift-nio"),
+                .product(name: "FlyingFox", package: "FlyingFox"),
             ],
             resources: [
                 .copy("Resources/fonts"),
