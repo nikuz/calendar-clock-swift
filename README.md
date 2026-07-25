@@ -125,6 +125,11 @@ sudo nano /boot/firmware/config.txt
 +dtoverlay=vc4-fkms-v3d
 ```
 
+Increase volume
+```bash
+alsamixer
+```
+
 Reboot.
 
 Make sure that `Headphones` are listed by the `aplay -l` command:
