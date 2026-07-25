@@ -1,0 +1,6 @@
+module COpenSSL [system] {
+    header "/usr/include/openssl/evp.h"
+    header "/usr/include/openssl/pem.h"
+    link "crypto"
+    export *
+}

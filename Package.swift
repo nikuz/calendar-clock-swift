@@ -15,10 +15,16 @@ let package = Package(
         .macOS("26.0")
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-crypto.git", from: "4.5.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.101.2"),
     ],
     targets: [
+        .systemLibrary(
+            name: "COpenSSL",
+            pkgConfig: "libcrypto",
+            providers: [
+                .apt(["libssl-dev"])
+            ]
+        ),
         // The C module that wraps raylib
         .target(
             name: "CRayLib",
@@ -27,9 +33,8 @@ let package = Package(
         .executableTarget(
             name: "CalendarClock",
             dependencies: [
+                "COpenSSL",
                 "CRayLib",
-                .product(name: "Crypto", package: "swift-crypto"),
-                .product(name: "CryptoExtras", package: "swift-crypto"),
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ],
