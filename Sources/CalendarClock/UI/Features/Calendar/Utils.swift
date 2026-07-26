@@ -62,7 +62,7 @@ enum CalendarUIUtils {
     }
 
     typealias EventsOrder = (
-        prev: (index: Int, event: CalendarEvent)?,
+        prevEvent: (index: Int, event: CalendarEvent)?,
         activeEvent: (index: Int, event: CalendarEvent)?,
         nextEvent: (index: Int, event: CalendarEvent)?,
         approachingEvent: (index: Int, event: CalendarEvent)?,
@@ -104,5 +104,74 @@ enum CalendarUIUtils {
             nextEvent,
             approachingEvent,
         )
+    }
+
+    typealias EventsNavigation = (activeEventIndex: Int, shift: Int32)
+
+    static func getEventsNavigation(
+        _ time: TimeInfo,
+        _ eventOrderData: (index: Int, event: CalendarEvent)?
+    ) -> EventsNavigation? {
+        guard let currentHour = time.components.hour,
+            let currentMinute = time.components.minute,
+            let eventIndex = eventOrderData?.index,
+            let event = eventOrderData?.event,
+            let eventStartDate = event.start.date,
+            let eventEndDate = event.end.date
+        else {
+            return nil
+        }
+
+        let timeMargin = Utilities.remapValue(
+            value: Int32(currentHour * 60 + currentMinute),
+            inMin: Int32(DAY_START_TIME),
+            inMax: Int32(DAY_END_TIME),
+            outMin: 0,
+            outMax: Int32((SCREEN_WIDTH * EVENTS_ZOOM) / (EVENTS_ZOOM / (EVENTS_ZOOM - 1))),
+        )
+
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+
+        let startTimeSeconds = eventStartDate.timeIntervalSince1970 - startOfToday.timeIntervalSince1970
+        let startPosition = Utilities.remapValue(
+            value: Int32(startTimeSeconds / 60),
+            inMin: Int32(DAY_START_TIME),
+            inMax: Int32(DAY_END_TIME),
+            outMin: 0,
+            outMax: Int32(SCREEN_WIDTH * EVENTS_ZOOM),
+        )
+
+        let endTimeSeconds = eventEndDate.timeIntervalSince1970 - startOfToday.timeIntervalSince1970
+        let endPosition = Utilities.remapValue(
+            value: Int32(endTimeSeconds / 60),
+            inMin: Int32(DAY_START_TIME),
+            inMax: Int32(DAY_END_TIME),
+            outMin: 0,
+            outMax: Int32(SCREEN_WIDTH * EVENTS_ZOOM)
+        )
+
+        let xStart = startPosition - timeMargin
+        let xEnd = endPosition - timeMargin
+        let screenWidth = Int32(SCREEN_WIDTH)
+        let edgePadding: Int32 = 100
+
+        // event is behind the left edge of the screen
+        if xStart < edgePadding {
+            return (
+                eventIndex,
+                abs(xStart) + edgePadding
+            )
+        }
+
+        // event is behind the right edge of the screen
+        if xEnd > screenWidth - edgePadding {
+            return (
+                eventIndex,
+                xEnd - screenWidth + edgePadding
+            )
+        }
+
+        return (eventIndex, 0)
     }
 }

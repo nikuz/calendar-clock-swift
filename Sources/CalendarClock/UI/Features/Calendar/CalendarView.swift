@@ -2,7 +2,9 @@ import Foundation
 import CRayLib
 
 @MainActor
-struct CalendarView {
+enum CalendarView {
+    static private var eventsNavigation: CalendarUIUtils.EventsNavigation?
+
     static func draw(appState: AppState) {
         let _appState = appState.current
         let time = CalendarUIUtils.getTime()
@@ -34,6 +36,13 @@ struct CalendarView {
                         state.backgroundVisible = !state.backgroundVisible
                     }
                 }
+                if eventsOrder.prevEvent != nil && KEY_LEFT.isPressed {
+                    eventsNavigation = CalendarUIUtils.getEventsNavigation(time, eventsOrder.prevEvent)
+                }
+                if eventsOrder.nextEvent != nil && KEY_RIGHT.isPressed {
+                    eventsNavigation = CalendarUIUtils.getEventsNavigation(time, eventsOrder.nextEvent)
+                }
+
                 CalendarBackground.draw(time: time, appState: _appState)
                 ActiveEventAlarmEffect.draw(time: time, appState: _appState, eventsOrder: eventsOrder)
                 CalendarTimeComponent.draw(
@@ -66,4 +75,5 @@ struct CalendarView {
                 CalendarTimeComponent.draw(time: time, appState: _appState)
         }
     }
+
 }
