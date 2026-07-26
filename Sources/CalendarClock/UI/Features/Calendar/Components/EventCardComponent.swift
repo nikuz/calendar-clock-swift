@@ -9,8 +9,8 @@ struct CalendarEventCardComponent {
         time: CalendarUIUtils.TimeInfo,
         appState: AppStateData,
         eventsOrder: CalendarUIUtils.EventsOrder,
-        outsideIndex: Int32,
-        outsideIndexIncrement: () -> Void,
+        outsideLeftEdgeIndex: inout Int32,
+        outsideRightEdgeIndex: inout Int32,
     ) {
         let event = positionedEvent.event
         guard let currentHour = time.components.hour,
@@ -31,6 +31,7 @@ struct CalendarEventCardComponent {
             outMin: 0,
             outMax: Int32((SCREEN_WIDTH * EVENTS_ZOOM) / (EVENTS_ZOOM / (EVENTS_ZOOM - 1))),
         )
+
         let eventStartHour = calendar.component(.hour, from: eventStartDate)
         let eventStartMinute = calendar.component(.minute, from: eventStartDate)
         let eventStartTime = eventStartHour * 60 + eventStartMinute
@@ -41,21 +42,7 @@ struct CalendarEventCardComponent {
             outMin: 0,
             outMax: Int32(SCREEN_WIDTH * EVENTS_ZOOM),
         )
-
         let xStart = startPosition - marginLeft
-        let isNightTime = CalendarUIUtils.isNightTime(time)
-        let brightnessFactor = isNightTime ? appState.brightness.nightFactor : appState.brightness.dayFactor
-        var color = ColorBrightness(CALENDAR_EVENT_COLORS[index], brightnessFactor)
-
-        // is outside visible time interval
-        if xStart > Int32(SCREEN_WIDTH) {
-            let outsideEventSize: Int32 = 6
-            let x = Int32(SCREEN_WIDTH) - outsideEventSize / 2 - outsideEventSize
-            let y = outsideEventSize / 2 + outsideEventSize + (outsideEventSize * 2 + outsideEventSize / 2) * outsideIndex
-            DrawCircle(x, y, Float(outsideEventSize), ColorAlpha(color, 0.5));
-            outsideIndexIncrement()
-            return
-        }
 
         let eventEndHour = calendar.component(.hour, from: eventEndDate)
         let eventEndMinute = calendar.component(.minute, from: eventEndDate)
@@ -67,8 +54,31 @@ struct CalendarEventCardComponent {
             outMin: 0,
             outMax: Int32(SCREEN_WIDTH * EVENTS_ZOOM)
         )
-        
         let xEnd = endPosition - marginLeft
+
+        let isNightTime = CalendarUIUtils.isNightTime(time)
+        let brightnessFactor = isNightTime ? appState.brightness.nightFactor : appState.brightness.dayFactor
+        var color = ColorBrightness(CALENDAR_EVENT_COLORS[index], brightnessFactor)
+        let outsideEventSize: Int32 = 6
+
+        // event is behind the left edge of the screen
+        if xEnd <= 0 {
+            let x = outsideEventSize / 2 + outsideEventSize
+            let y = outsideEventSize / 2 + outsideEventSize + (outsideEventSize * 2 + outsideEventSize / 2) * outsideLeftEdgeIndex
+            DrawCircle(x, y, Float(outsideEventSize), ColorAlpha(color, 0.5));
+            outsideLeftEdgeIndex += 1
+            return
+        }
+
+        // event is behind the right edge of the screen
+        if xStart > Int32(SCREEN_WIDTH) {
+            let x = Int32(SCREEN_WIDTH) - outsideEventSize / 2 - outsideEventSize
+            let y = outsideEventSize / 2 + outsideEventSize + (outsideEventSize * 2 + outsideEventSize / 2) * outsideRightEdgeIndex
+            DrawCircle(x, y, Float(outsideEventSize), ColorAlpha(color, 0.5));
+            outsideRightEdgeIndex += 1
+            return
+        }
+
         let yEnd = Int32(CONTENT_HEIGHT)
         var yStart = Int32(CONTENT_HEIGHT - EVENTS_HEIGHT)
 

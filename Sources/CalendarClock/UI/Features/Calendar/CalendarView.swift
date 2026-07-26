@@ -52,7 +52,9 @@ enum CalendarView {
                 )
                 ActiveEventAlarm.play(appState: _appState, eventsOrder: eventsOrder)
 
-                var outsideIndex: Int32 = 0
+                var outsideLeftEdgeIndex: Int32 = 0
+                var outsideRightEdgeIndex: Int32 = 0
+                
                 for (index, event) in payload.positionedEvents.enumerated() {
                     CalendarEventCardComponent.draw(
                         positionedEvent: event, 
@@ -60,10 +62,9 @@ enum CalendarView {
                         time: time, 
                         appState: _appState,
                         eventsOrder: eventsOrder,
-                        outsideIndex: outsideIndex,
-                    ) {
-                        outsideIndex += 1
-                    }
+                        outsideLeftEdgeIndex: &outsideLeftEdgeIndex,
+                        outsideRightEdgeIndex: &outsideRightEdgeIndex,
+                    )
                 }
 
             case .failed(let error):
