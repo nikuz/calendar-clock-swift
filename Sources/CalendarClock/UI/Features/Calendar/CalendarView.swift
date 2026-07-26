@@ -3,6 +3,9 @@ import CRayLib
 
 @MainActor
 enum CalendarView {
+    // static private let animationDuration = 1.0 // seconds
+    // static private var animationStartTime = GetTime()
+    // static private var animationDirection: Float = 1
     static private var eventsNavigation: CalendarUIUtils.EventsNavigation?
 
     static func draw(appState: AppState) {
@@ -36,15 +39,18 @@ enum CalendarView {
                         state.backgroundVisible = !state.backgroundVisible
                     }
                 }
-                if eventsOrder.prevEvent != nil && KEY_LEFT.isPressed {
-                    eventsNavigation = CalendarUIUtils.getEventsNavigation(time, eventsOrder.prevEvent)
-                }
-                if eventsOrder.nextEvent != nil && KEY_RIGHT.isPressed {
-                    eventsNavigation = CalendarUIUtils.getEventsNavigation(time, eventsOrder.nextEvent)
+                if KEY_LEFT.isPressed || KEY_RIGHT.isPressed {
+                    eventsNavigation = CalendarUIUtils.getEventsNavigation(
+                        time: time, 
+                        events: payload.events,
+                        eventsOrder: eventsOrder,
+                        eventsNavigation: eventsNavigation,
+                        direction: KEY_LEFT.isPressed ? .left : .right,
+                    )
                 }
 
                 CalendarBackground.draw(time: time, appState: _appState)
-                ActiveEventAlarmEffect.draw(
+                CalendarActiveEventAlarmEffect.draw(
                     time: time, 
                     appState: _appState, 
                     eventsOrder: eventsOrder,
@@ -56,10 +62,10 @@ enum CalendarView {
                     eventsOrder: eventsOrder,
                     eventsNavigation: eventsNavigation,
                 )
-                ActiveEventAlarm.play(appState: _appState, eventsOrder: eventsOrder)
+                CalendarActiveEventAlarm.play(appState: _appState, eventsOrder: eventsOrder)
 
-                var outsideLeftEdgeIndex: Int32 = 0
-                var outsideRightEdgeIndex: Int32 = 0
+                var outsideLeftEdgeIndex = 0
+                var outsideRightEdgeIndex = 0
                 
                 for (index, event) in payload.positionedEvents.enumerated() {
                     CalendarEventCardComponent.draw(
@@ -82,6 +88,21 @@ enum CalendarView {
                 )
                 CalendarTimeComponent.draw(time: time, appState: _appState)
         }
+
+        // let elapsedTime = (GetTime() - animationStartTime) / animationDuration
+        // let animationProgress = Animation.animateWith(value: Float(elapsedTime), .easeInCubic) * 100
+        // let cubeSize: Float = 20.0;
+        // var x: Float = 0
+        // x = (SCREEN_WIDTH - cubeSize) / 100 * animationProgress
+        // if animationDirection == -1 {
+        //     x = SCREEN_WIDTH - cubeSize - x
+        // }
+        // DrawRectangleV(Vector2(x: x, y: 0), Vector2(x: cubeSize, y: 20), .red)
+
+        // if elapsedTime >= 1.0 {
+        //     animationStartTime = GetTime()
+        //     animationDirection = animationDirection * -1
+        // }
     }
 
 }

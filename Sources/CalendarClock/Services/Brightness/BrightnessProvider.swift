@@ -154,7 +154,7 @@ final class BrightnessProvider {
     /// Takes a single lux reading. Opens the device if it isn't already open.
     ///
     /// - Returns: Ambient light level in lux.
-    func readLux() throws -> Double {
+    func readLux() throws -> Float {
         if fileDescriptor < 0 {
             try open()
         }
@@ -175,8 +175,8 @@ final class BrightnessProvider {
         let raw = try readRawValue()
         // Per BH1750 datasheet, divide raw count by 1.2 to get lux
         // (double the divisor to 2.4 when using an *H2* high-res mode).
-        let divisor: Double = (mode == .continuousHighRes2 || mode == .oneTimeHighRes2) ? 2.4 : 1.2
-        return Double(raw) / divisor
+        let divisor: Float = (mode == .continuousHighRes2 || mode == .oneTimeHighRes2) ? 2.4 : 1.2
+        return Float(raw) / divisor
     }
 
     /// Async, cancellation-aware version of `startPrintingLoop`.
@@ -188,7 +188,7 @@ final class BrightnessProvider {
     /// - Parameter interval: Seconds between readings.
     func startReadingLoop(
         interval: TimeInterval = 1.0, 
-        onRead: @Sendable (_ luxValue: Double) async throws -> Void,
+        onRead: @Sendable (_ luxValue: Float) async throws -> Void,
     ) async {
         while !Task.isCancelled {
             do {

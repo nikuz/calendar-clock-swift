@@ -10,7 +10,7 @@ import CRayLib
 @MainActor private let baseBrightnessLoc = GetShaderLocation(shader, "baseBrightness")
 
 @MainActor
-struct ActiveEventAlarmEffect {
+struct CalendarActiveEventAlarmEffect {
     static func draw(
         time: CalendarUIUtils.TimeInfo,
         appState: AppStateData,
@@ -18,53 +18,19 @@ struct ActiveEventAlarmEffect {
         eventsNavigation: CalendarUIUtils.EventsNavigation? = nil,
     ) {
         guard let activeEvent = eventsOrder.activeEvent,
-            activeEvent.event.id != appState.calendar.confirmedApproachingEventId,
-            let currentHour = time.components.hour,
-            let currentMinute = time.components.minute,
-            let activeEventStartDate = activeEvent.event.start.date,
-            let activeEventEndDate = activeEvent.event.end.date
+            activeEvent.event.id != appState.calendar.confirmedApproachingEventId
         else {
             return
         }
 
-        let calendar = Calendar.current
-        let currentTime = currentHour * 60 + currentMinute
-        var marginLeft = Utilities.remapValue(
-            value: Int32(currentTime),
-            inMin: Int32(DAY_START_TIME),
-            inMax: Int32(DAY_END_TIME),
-            outMin: 0,
-            outMax: Int32((SCREEN_WIDTH * EVENTS_ZOOM) / (EVENTS_ZOOM / (EVENTS_ZOOM - 1)))
-        )
-        var navigationShift: Int32 = 0
-        if let eventsNavigation {
-            navigationShift = eventsNavigation.shift
-        }
-        marginLeft += navigationShift
-
-        let activeEventStartHour = calendar.component(.hour, from: activeEventStartDate)
-        let activeEventStartMinute = calendar.component(.minute, from: activeEventStartDate)
-        let activeEventStartTime = activeEventStartHour * 60 + activeEventStartMinute
-        let startPosition = Utilities.remapValue(
-            value: Int32(activeEventStartTime),
-            inMin: Int32(DAY_START_TIME),
-            inMax: Int32(DAY_END_TIME),
-            outMin: 0,
-            outMax: Int32(SCREEN_WIDTH * EVENTS_ZOOM)
-        )
-        let activeEventEndHour = calendar.component(.hour, from: activeEventEndDate)
-        let activeEventEndMinute = calendar.component(.minute, from: activeEventEndDate)
-        let activeEventEndTime = activeEventEndHour * 60 + activeEventEndMinute
-        let endPosition = Utilities.remapValue(
-            value: Int32(activeEventEndTime),
-            inMin: Int32(DAY_START_TIME),
-            inMax: Int32(DAY_END_TIME),
-            outMin: 0,
-            outMax: Int32(SCREEN_WIDTH * EVENTS_ZOOM)
+        let eventRectangle = CalendarUIUtils.getEventRectangle(
+            time: time,
+            event: activeEvent.event,
+            eventsNavigation: eventsNavigation,
         )
 
-        let centerX = Float(startPosition - marginLeft + (endPosition - startPosition) / 2)
-        let centerY = EVENTS_HEIGHT / 2
+        let centerX = eventRectangle.x + eventRectangle.width / 2
+        let centerY = eventRectangle.height / 2
 
         let raylibColor = ColorBrightness(CALENDAR_EVENT_COLORS[activeEvent.index], appState.brightness.dayFactor)
         

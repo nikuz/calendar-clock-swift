@@ -33,11 +33,9 @@ struct CalendarLoadingComponent {
             let xPos = startX + Float(i) * (barWidth + barSpacing)
             let yPos = centerY + (maxBarHeight / 2.0) - currentHeight
             
-            DrawRectangle(
-                Int32(xPos),
-                Int32(yPos),
-                Int32(barWidth),
-                Int32(currentHeight),
+            DrawRectangleV(
+                Vector2(x: xPos, y: yPos),
+                Vector2(x: barWidth, y: currentHeight),
                 .maroon
             )
         }

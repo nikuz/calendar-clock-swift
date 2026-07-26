@@ -1,15 +1,15 @@
 struct AppStateBrightness: Sendable {
-    let rawValue: Double
+    let rawValue: Float
     let nightFactor: Float
     let dayFactor: Float
 
     private let BRIGHTNESS_MIN: Float = 0.0
     private let BRIGHTNESS_MAX: Float = 30.0
 
-    init(_ rawValue: Double) {
+    init(_ rawValue: Float) {
         self.rawValue = rawValue
         let factor = Utilities.remapValue(
-            value: Float(rawValue),
+            value: rawValue,
             inMin: BRIGHTNESS_MIN,
             inMax: BRIGHTNESS_MAX,
             outMin: -1,

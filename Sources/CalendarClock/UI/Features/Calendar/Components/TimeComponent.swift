@@ -37,14 +37,14 @@ struct CalendarTimeComponent {
 
         var navigationShift: Float = 0.0
         if let eventsNavigation {
-            navigationShift = Float(eventsNavigation.shift)
+            navigationShift = eventsNavigation.shift
         }
         x -= navigationShift
 
         var textX = max(x - hoursTextSize.x - spacingTextSize.x / 2, 0)
         textX = min(textX, SCREEN_WIDTH - timeTextSize.x)
         textX = textX.rounded(.towardZero)
-        let textY: Float = isNightTime ? CONTENT_HEIGHT / 2 - timeTextSize.y / 2 : 5.0
+        let textY = isNightTime ? CONTENT_HEIGHT / 2 - timeTextSize.y / 2 : 5.0
 
         var lineX = max(x, hoursTextSize.x + spacingTextSize.x / 2)
         lineX = min(lineX, SCREEN_WIDTH - minutesTextSize.x - spacingTextSize.x / 2)
@@ -55,7 +55,11 @@ struct CalendarTimeComponent {
             color = ColorBrightness(CALENDAR_EVENT_COLORS[activeEvent.index], brightnessFactor)
         }
 
-        DrawLineV(Vector2(x: lineX, y: 0), Vector2(x: lineX, y: CONTENT_HEIGHT), color)
+        DrawLineV(
+            Vector2(x: lineX, y: 0), 
+            Vector2(x: lineX, y: CONTENT_HEIGHT), 
+            color
+        )
         DrawTextEx(unscii16Font, timeText, Vector2(x: textX, y: textY), fontSize, 0, color)
     }
 }

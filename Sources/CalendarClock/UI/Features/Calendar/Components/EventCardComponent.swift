@@ -10,8 +10,8 @@ struct CalendarEventCardComponent {
         appState: AppStateData,
         eventsOrder: CalendarUIUtils.EventsOrder,
         eventsNavigation: CalendarUIUtils.EventsNavigation? = nil,
-        outsideLeftEdgeIndex: inout Int32,
-        outsideRightEdgeIndex: inout Int32,
+        outsideLeftEdgeIndex: inout Int,
+        outsideRightEdgeIndex: inout Int,
     ) {
         let event = positionedEvent.event
         guard let currentHour = time.components.hour,
@@ -25,73 +25,53 @@ struct CalendarEventCardComponent {
 
         let currentTime = currentHour * 60 + currentMinute
         let calendar = Calendar.current
-        var marginLeft = Utilities.remapValue(
-            value: Int32(currentTime),
-            inMin: Int32(DAY_START_TIME),
-            inMax: Int32(DAY_END_TIME),
-            outMin: 0,
-            outMax: Int32((SCREEN_WIDTH * EVENTS_ZOOM) / (EVENTS_ZOOM / (EVENTS_ZOOM - 1))),
+        
+        let eventRectangle = CalendarUIUtils.getEventRectangle(
+            time: time,
+            event: event,
+            eventsNavigation: eventsNavigation,
         )
-        var navigationShift: Int32 = 0
-        if let eventsNavigation {
-            navigationShift = eventsNavigation.shift
-        }
-        marginLeft += navigationShift
+        // let eventRectangle = Rectangle(x: 0.0, y: 10.0, width: 100.0, height: 20.0)
+        let xStart = eventRectangle.x
+        let xEnd = eventRectangle.x + eventRectangle.width
 
         let eventStartHour = calendar.component(.hour, from: eventStartDate)
         let eventStartMinute = calendar.component(.minute, from: eventStartDate)
-        let eventStartTime = eventStartHour * 60 + eventStartMinute
-        let startPosition = Utilities.remapValue(
-            value: Int32(eventStartTime),
-            inMin: Int32(DAY_START_TIME),
-            inMax: Int32(DAY_END_TIME),
-            outMin: 0,
-            outMax: Int32(SCREEN_WIDTH * EVENTS_ZOOM),
-        )
-        let xStart = startPosition - marginLeft
 
         let eventEndHour = calendar.component(.hour, from: eventEndDate)
         let eventEndMinute = calendar.component(.minute, from: eventEndDate)
         let eventEndTime = eventEndHour * 60 + eventEndMinute
-        let endPosition = Utilities.remapValue(
-            value: Int32(eventEndTime),
-            inMin: Int32(DAY_START_TIME),
-            inMax: Int32(DAY_END_TIME),
-            outMin: 0,
-            outMax: Int32(SCREEN_WIDTH * EVENTS_ZOOM)
-        )
-        let xEnd = endPosition - marginLeft
 
         let isNightTime = CalendarUIUtils.isNightTime(time)
         let brightnessFactor = isNightTime ? appState.brightness.nightFactor : appState.brightness.dayFactor
         var color = ColorBrightness(CALENDAR_EVENT_COLORS[index], brightnessFactor)
-        let outsideEventSize: Int32 = 6
+        let outsideEventSize: Float = 6.0
 
         // event is behind the left edge of the screen
         if xEnd <= 0 {
             let x = outsideEventSize / 2 + outsideEventSize
-            let y = outsideEventSize / 2 + outsideEventSize + (outsideEventSize * 2 + outsideEventSize / 2) * outsideLeftEdgeIndex
-            DrawCircle(x, y, Float(outsideEventSize), ColorAlpha(color, 0.5));
+            let y = outsideEventSize / 2 + outsideEventSize + (outsideEventSize * 2 + outsideEventSize / 2) * Float(outsideLeftEdgeIndex)
+            DrawCircleV(Vector2(x: x, y: y), outsideEventSize, ColorAlpha(color, 0.5));
             outsideLeftEdgeIndex += 1
             return
         }
 
         // event is behind the right edge of the screen
-        if xStart > Int32(SCREEN_WIDTH) {
-            let x = Int32(SCREEN_WIDTH) - outsideEventSize / 2 - outsideEventSize
-            let y = outsideEventSize / 2 + outsideEventSize + (outsideEventSize * 2 + outsideEventSize / 2) * outsideRightEdgeIndex
-            DrawCircle(x, y, Float(outsideEventSize), ColorAlpha(color, 0.5));
+        if xStart > SCREEN_WIDTH {
+            let x = SCREEN_WIDTH - outsideEventSize / 2 - outsideEventSize
+            let y = outsideEventSize / 2 + outsideEventSize + (outsideEventSize * 2 + outsideEventSize / 2) * Float(outsideRightEdgeIndex)
+            DrawCircleV(Vector2(x: x, y: y), outsideEventSize, ColorAlpha(color, 0.5));
             outsideRightEdgeIndex += 1
             return
         }
 
-        let yEnd = Int32(CONTENT_HEIGHT)
-        var yStart = Int32(CONTENT_HEIGHT - EVENTS_HEIGHT)
+        var yStart = eventRectangle.y
+        let yEnd = eventRectangle.y + eventRectangle.height
 
         // less than 100%
         if positionedEvent.height < 100 {
-            let yStartOnePercent = Float(yStart) / 100
-            yStart += Int32(yStartOnePercent * Float(100 - positionedEvent.height))
+            let yStartOnePercent = yStart / 100
+            yStart += yStartOnePercent * (100.0 - positionedEvent.height)
         }
 
         var borderColor = color
@@ -115,8 +95,8 @@ struct CalendarEventCardComponent {
         }
 
         let boxWidth = xEnd - xStart
-        let chamferSize: Int32 = 4
-        let lineThickness: Int32 = 1
+        let chamferSize: Float = 4.0
+        let lineThickness: Float = 1.0
 
         let chamferLeftXStart = xStart
         let chamferLeftXEnd = xStart + chamferSize
@@ -130,42 +110,50 @@ struct CalendarEventCardComponent {
         #endif
 
         // filling
-        DrawRectangle(xStart, yStart + chamferSize, boxWidth, yEnd - yStart, fill)
-        DrawRectangle(chamferLeftXEnd, yStart, chamferRightXStart - chamferLeftXEnd, yEnd - yStart, fill)
-        DrawTriangle(
-            Vector2(x: Float(chamferLeftXEnd), y: Float(yStart + chamferSize)),
-            Vector2(x: Float(chamferLeftXEnd), y: Float(yStart)),
-            Vector2(x: Float(chamferLeftXStart), y: Float(yStart + chamferSize)),
+        DrawRectangleV(
+            Vector2(x: xStart, y: yStart + chamferSize), 
+            Vector2(x: boxWidth, y: yEnd - yStart), 
+            fill
+        )
+        DrawRectangleV(
+            Vector2(x: chamferLeftXEnd, y: yStart), 
+            Vector2(x: chamferRightXStart - chamferLeftXEnd, y: yEnd - yStart), 
             fill
         )
         DrawTriangle(
-            Vector2(x: Float(chamferRightXEnd), y: Float(yStart + chamferSize)),
-            Vector2(x: Float(chamferRightXStart), y: Float(yStart)),
-            Vector2(x: Float(chamferRightXStart), y: Float(yStart + chamferSize)),
+            Vector2(x: chamferLeftXEnd, y: yStart + chamferSize),
+            Vector2(x: chamferLeftXEnd, y: yStart),
+            Vector2(x: chamferLeftXStart, y: yStart + chamferSize),
+            fill
+        )
+        DrawTriangle(
+            Vector2(x: chamferRightXEnd, y: yStart + chamferSize),
+            Vector2(x: chamferRightXStart, y: yStart),
+            Vector2(x: chamferRightXStart, y: yStart + chamferSize),
             fill
         )
 
         // border
-        DrawLine(xStart, yStart + chamferSize, xStart, yEnd, borderColor)
-        DrawLine(chamferLeftXStart, yStart + chamferSize, chamferLeftXEnd, yStart, borderColor)
-        DrawLine(xStart + chamferSize, yStart, chamferRightXStart, yStart, borderColor)
-        DrawLine(chamferRightXStart, yStart, chamferRightXEnd, yStart + chamferSize, borderColor)
-        DrawLine(xEnd, yStart + chamferSize, xEnd, yEnd, borderColor)
+        DrawLineV(Vector2(x: xStart, y: yStart + chamferSize), Vector2(x: xStart, y: yEnd), borderColor)
+        DrawLineV(Vector2(x: chamferLeftXStart, y: yStart + chamferSize), Vector2(x: chamferLeftXEnd, y: yStart), borderColor)
+        DrawLineV(Vector2(x: xStart + chamferSize, y: yStart), Vector2(x: chamferRightXStart, y: yStart), borderColor)
+        DrawLineV(Vector2(x: chamferRightXStart, y: yStart), Vector2(x: chamferRightXEnd, y: yStart + chamferSize), borderColor)
+        DrawLineV(Vector2(x: xEnd, y: yStart + chamferSize), Vector2(x: xEnd, y: yEnd), borderColor)
 
-        let isTinyEvent = boxWidth <= 40
-        let hPadding: Int32 = isTinyEvent ? 3 : 4
-        let vPadding: Int32 = 5
-        let lineHeight: Int32 = 10
-        var timeSpace: Int32 = 20
+        let isTinyEvent = boxWidth <= 40.0
+        let hPadding: Float = isTinyEvent ? 3.0 : 4.0
+        let vPadding: Float = 5.0
+        let lineHeight: Float = 10.0
+        var timeSpace: Float = 20.0
         let unscii8Font = UIFonts.getFont(.unscii8)
         let silkscreen3x7Font = UIFonts.getFont(.silkscreen3x7)
         let font = isTinyEvent ? silkscreen3x7Font : unscii8Font
-        let fontSize: Int32 = isTinyEvent ? 9 : 8
-        let characterWidth: Int32 = isTinyEvent ? 4 : 8
-        var boxContentWidth = boxWidth - hPadding * 2
+        let fontSize: Float = isTinyEvent ? 9.0 : 8.0
+        let characterWidth: Float = isTinyEvent ? 4.0 : 8.0
+        var boxContentWidth = boxWidth - hPadding * 2.0
 
-        while boxContentWidth % fontSize != 0 {
-            boxContentWidth += 1
+        while boxContentWidth.truncatingRemainder(dividingBy: fontSize) != 0 {
+            boxContentWidth += 1.0
         }
 
         // time
@@ -173,26 +161,26 @@ struct CalendarEventCardComponent {
         if (eventStartMinute != 0) {
             eventStartTimeString += ":\(eventStartMinute)"
         }
-        let eventStartTimeStringSize = Int32(eventStartTimeString.count) * characterWidth
+        let eventStartTimeStringSize = Float(eventStartTimeString.count) * characterWidth
         var eventEndTimeString = "\(CalendarUIUtils.formatTo12H(eventEndHour))"
         if (eventEndMinute != 0) {
             eventEndTimeString += ":\(eventEndMinute)"
         }
-        let eventEndTimeStringSize = Int32(eventEndTimeString.count) * characterWidth
+        let eventEndTimeStringSize = Float(eventEndTimeString.count) * characterWidth
 
-        var endTimeX = Float(xStart + hPadding + boxContentWidth - eventEndTimeStringSize)
-        var endTimeY = Float(yStart + vPadding)
+        var endTimeX = xStart + hPadding + boxContentWidth - eventEndTimeStringSize
+        var endTimeY = yStart + vPadding
         if eventStartTimeStringSize + eventEndTimeStringSize + fontSize > boxContentWidth {
-            endTimeX = Float(xStart + hPadding)
-            endTimeY = Float(yStart + vPadding + lineHeight)
+            endTimeX = xStart + hPadding
+            endTimeY = yStart + vPadding + lineHeight
             timeSpace += lineHeight
         }
 
         DrawTextEx(
             font,
             eventStartTimeString,
-            Vector2(x: Float(xStart + hPadding), y: Float(yStart + vPadding)),
-            Float(fontSize),
+            Vector2(x: xStart + hPadding, y: yStart + vPadding),
+            fontSize,
             0,
             color
         )
@@ -200,7 +188,7 @@ struct CalendarEventCardComponent {
             font,
             eventEndTimeString,
             Vector2(x: endTimeX, y: endTimeY),
-            Float(fontSize),
+            fontSize,
             0,
             color
         )
@@ -210,7 +198,7 @@ struct CalendarEventCardComponent {
         let summary = event.summary ?? "(untitled)"
         var lines: [String] = []
         var curLine = ""
-        var curLineWidth: Int32 = 0
+        var curLineWidth: Float = 0.0
         var isFullSummaryFit = false
         
         // content filling
@@ -237,7 +225,7 @@ struct CalendarEventCardComponent {
                 }
                 curLine = ""
                 curLineWidth = 0
-                if Int32(lines.count + 1) * lineHeight >= summaryBoxHeight {
+                if Float(lines.count + 1) * lineHeight >= summaryBoxHeight {
                     if !isFullSummaryFit {
                         let lastLine = lines[lines.count - 1]
                         lines[lines.count - 1] = lastLine.dropLast(3) + "..."
@@ -250,13 +238,13 @@ struct CalendarEventCardComponent {
         }
 
         for (index, line) in lines.reversed().enumerated() {
-            let lineX = Float(xStart + hPadding)
-            let lineY = Float(yEnd - (lineHeight * Int32(index + 1)))
+            let lineX = xStart + hPadding
+            let lineY = yEnd - (lineHeight * Float(index + 1))
             DrawTextEx(
                 font,
                 line,
                 Vector2(x: lineX, y: lineY),
-                Float(fontSize),
+                fontSize,
                 0,
                 color
             )

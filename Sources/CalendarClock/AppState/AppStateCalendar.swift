@@ -69,13 +69,13 @@ struct CalendarPayload: Sendable {
 
 struct PositionedCalendarEvent: Sendable {
     let event: CalendarEvent
-    let height: Int
+    let height: Float
 }
 
 private enum CalendarEventLayout {
-    static let baseHeight: Int = 100
-    static let overlapPunishment: Int = 25
-    static let minHeight: Int = 25
+    static let baseHeight: Float = 100.0
+    static let overlapPunishment: Float = 25.0
+    static let minHeight: Float = 25.0
 
     static func calculateHeights(for events: [CalendarEvent]) -> [PositionedCalendarEvent] {
         var result: [PositionedCalendarEvent] = []
@@ -85,7 +85,7 @@ private enum CalendarEventLayout {
         var maxEndDateSoFar: Date?
 
         for event in events {
-            let height: Int
+            let height: Float
             if let maxEndDateSoFar, let eventStartDate = event.start.date, eventStartDate < maxEndDateSoFar {
                 height = max(prevHeight - overlapPunishment, minHeight)
             } else {

@@ -2,7 +2,7 @@ import Foundation
 import CRayLib
 
 @MainActor
-enum ActiveEventAlarm {
+enum CalendarActiveEventAlarm {
     private static let maxAlarmDuration = 60.0 // seconds
     private static var alarmStarted = false
     private static var alarmStartTime = 0.0
