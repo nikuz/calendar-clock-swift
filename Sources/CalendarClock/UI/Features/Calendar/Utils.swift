@@ -154,13 +154,13 @@ enum CalendarUIUtils {
         let xStart = startPosition - timeMargin
         let xEnd = endPosition - timeMargin
         let screenWidth = Int32(SCREEN_WIDTH)
-        let edgePadding: Int32 = 100
+        let edgePadding: Int32 = 30
 
         // event is behind the left edge of the screen
         if xStart < edgePadding {
             return (
                 eventIndex,
-                abs(xStart) + edgePadding
+                xStart - edgePadding
             )
         }
 

@@ -7,6 +7,7 @@ struct CalendarTimeComponent {
         time: CalendarUIUtils.TimeInfo, 
         appState: AppStateData, 
         eventsOrder: CalendarUIUtils.EventsOrder? = nil,
+        eventsNavigation: CalendarUIUtils.EventsNavigation? = nil,
     ) {
         let unscii16Font = UIFonts.getFont(.unscii16)
         let hour = time.components.hour ?? 0
@@ -26,13 +27,19 @@ struct CalendarTimeComponent {
         let timeText = "\(hoursText)\(spacingText)\(minutesText)"
         let timeTextSize = MeasureTextEx(unscii16Font, timeText, fontSize, 0)
         
-        let x = Utilities.remapValue(
+        var x = Utilities.remapValue(
             value: Float(hour * 60 + minute),
             inMin: DAY_START_TIME,
             inMax: DAY_END_TIME,
             outMin: 0,
             outMax: SCREEN_WIDTH,
         )
+
+        var navigationShift: Float = 0.0
+        if let eventsNavigation {
+            navigationShift = Float(eventsNavigation.shift)
+        }
+        x -= navigationShift
 
         var textX = max(x - hoursTextSize.x - spacingTextSize.x / 2, 0)
         textX = min(textX, SCREEN_WIDTH - timeTextSize.x)

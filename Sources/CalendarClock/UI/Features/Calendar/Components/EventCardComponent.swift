@@ -9,6 +9,7 @@ struct CalendarEventCardComponent {
         time: CalendarUIUtils.TimeInfo,
         appState: AppStateData,
         eventsOrder: CalendarUIUtils.EventsOrder,
+        eventsNavigation: CalendarUIUtils.EventsNavigation? = nil,
         outsideLeftEdgeIndex: inout Int32,
         outsideRightEdgeIndex: inout Int32,
     ) {
@@ -24,13 +25,18 @@ struct CalendarEventCardComponent {
 
         let currentTime = currentHour * 60 + currentMinute
         let calendar = Calendar.current
-        let marginLeft = Utilities.remapValue(
+        var marginLeft = Utilities.remapValue(
             value: Int32(currentTime),
             inMin: Int32(DAY_START_TIME),
             inMax: Int32(DAY_END_TIME),
             outMin: 0,
             outMax: Int32((SCREEN_WIDTH * EVENTS_ZOOM) / (EVENTS_ZOOM / (EVENTS_ZOOM - 1))),
         )
+        var navigationShift: Int32 = 0
+        if let eventsNavigation {
+            navigationShift = eventsNavigation.shift
+        }
+        marginLeft += navigationShift
 
         let eventStartHour = calendar.component(.hour, from: eventStartDate)
         let eventStartMinute = calendar.component(.minute, from: eventStartDate)

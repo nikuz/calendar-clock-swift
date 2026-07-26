@@ -44,11 +44,17 @@ enum CalendarView {
                 }
 
                 CalendarBackground.draw(time: time, appState: _appState)
-                ActiveEventAlarmEffect.draw(time: time, appState: _appState, eventsOrder: eventsOrder)
+                ActiveEventAlarmEffect.draw(
+                    time: time, 
+                    appState: _appState, 
+                    eventsOrder: eventsOrder,
+                    eventsNavigation: eventsNavigation,
+                )
                 CalendarTimeComponent.draw(
                     time: time, 
                     appState: _appState,
                     eventsOrder: eventsOrder,
+                    eventsNavigation: eventsNavigation,
                 )
                 ActiveEventAlarm.play(appState: _appState, eventsOrder: eventsOrder)
 
@@ -62,6 +68,7 @@ enum CalendarView {
                         time: time, 
                         appState: _appState,
                         eventsOrder: eventsOrder,
+                        eventsNavigation: eventsNavigation,
                         outsideLeftEdgeIndex: &outsideLeftEdgeIndex,
                         outsideRightEdgeIndex: &outsideRightEdgeIndex,
                     )

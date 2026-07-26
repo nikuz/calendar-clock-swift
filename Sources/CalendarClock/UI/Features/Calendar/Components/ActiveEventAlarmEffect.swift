@@ -14,7 +14,8 @@ struct ActiveEventAlarmEffect {
     static func draw(
         time: CalendarUIUtils.TimeInfo,
         appState: AppStateData,
-        eventsOrder: CalendarUIUtils.EventsOrder
+        eventsOrder: CalendarUIUtils.EventsOrder,
+        eventsNavigation: CalendarUIUtils.EventsNavigation? = nil,
     ) {
         guard let activeEvent = eventsOrder.activeEvent,
             activeEvent.event.id != appState.calendar.confirmedApproachingEventId,
@@ -28,13 +29,19 @@ struct ActiveEventAlarmEffect {
 
         let calendar = Calendar.current
         let currentTime = currentHour * 60 + currentMinute
-        let marginLeft = Utilities.remapValue(
+        var marginLeft = Utilities.remapValue(
             value: Int32(currentTime),
             inMin: Int32(DAY_START_TIME),
             inMax: Int32(DAY_END_TIME),
             outMin: 0,
             outMax: Int32((SCREEN_WIDTH * EVENTS_ZOOM) / (EVENTS_ZOOM / (EVENTS_ZOOM - 1)))
         )
+        var navigationShift: Int32 = 0
+        if let eventsNavigation {
+            navigationShift = eventsNavigation.shift
+        }
+        marginLeft += navigationShift
+
         let activeEventStartHour = calendar.component(.hour, from: activeEventStartDate)
         let activeEventStartMinute = calendar.component(.minute, from: activeEventStartDate)
         let activeEventStartTime = activeEventStartHour * 60 + activeEventStartMinute
