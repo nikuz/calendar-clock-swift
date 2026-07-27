@@ -3,7 +3,6 @@ import CRayLib
 
 enum UIShaderName: String, CaseIterable {
     case waveEffect = "wave-effect"
-    case scanlines = "scanlines"
     case dreamVision = "dream_vision"
 }
 

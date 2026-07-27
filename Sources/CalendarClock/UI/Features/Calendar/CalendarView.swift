@@ -1,7 +1,7 @@
 import Foundation
 import CRayLib
 
-@MainActor private let shader = UIShaders.getShader(.scanlines)
+@MainActor private let shader = UIShaders.getShader(.dreamVision)
 @MainActor private let backgroundTexture = LoadRenderTexture(Int32(SCREEN_WIDTH), Int32(CONTENT_HEIGHT))
 @MainActor private let blurTexture = LoadRenderTexture(Int32(SCREEN_WIDTH), Int32(CONTENT_HEIGHT))
 @MainActor private var horizontal = Vector2(x: 1.0, y: 0.0)
