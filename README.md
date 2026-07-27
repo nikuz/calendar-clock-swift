@@ -170,6 +170,13 @@ dietpi-config
 ```
 Select `Language/Regional Options`, and set appropriate `Timezone`
 
+### Enable automatic network time sync
+```bash
+sudo timedatectl set-ntp true
+sudo systemctl enable --now systemd-timesyncd
+imedatectl status
+```
+
 ### Add Docker container SSH key to authorized_keys on the Raspberry PI board
 
 ### Install and setup ngrok
