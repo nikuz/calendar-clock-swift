@@ -124,11 +124,11 @@ enum CalendarUIUtils {
         eventsNavigation: EventsNavigation?,
         direction: EventsNavigationDirection,
     ) -> EventsNavigation? {
-        var eventIndex = 0
+        var eventIndex: Int? = nil
 
         if let eventsNavigation {
             eventIndex = eventsNavigation.eventIndex
-            eventIndex += direction == .left ? -1 : 1
+            eventIndex! += direction == .left ? -1 : 1
         } else {
             if let activeEvent = eventsOrder.activeEvent {
                 eventIndex = activeEvent.index
@@ -137,6 +137,10 @@ enum CalendarUIUtils {
             } else if let nextEvent = eventsOrder.nextEvent, direction == .right {
                 eventIndex = nextEvent.index
             }
+        }
+
+        guard let eventIndex else {
+            return eventsNavigation
         }
 
         if eventIndex < 0 || eventIndex == events.count {
@@ -148,27 +152,17 @@ enum CalendarUIUtils {
         let eventRectangle = getEventRectangle(
             time: time,
             event: event,
-            eventsNavigation: eventsNavigation,
         )
 
         let edgePadding: Float = 30.0
         let duration = 2.0
         let startTime = GetTime()
 
-        var xStart = eventRectangle.x
-        var xEnd = eventRectangle.x + eventRectangle.width
-
-        // take raw event position without shift
-        if let eventsNavigation {
-            xStart += eventsNavigation.shift
-            xEnd += eventsNavigation.shift
-        }
-
         // event is behind the left edge of the screen
         if eventRectangle.x < edgePadding {
             return (
                 eventIndex,
-                xStart - edgePadding,
+                eventRectangle.x - edgePadding,
                 duration,
                 startTime,
             )
@@ -177,28 +171,25 @@ enum CalendarUIUtils {
         else if eventRectangle.x + eventRectangle.width > SCREEN_WIDTH - edgePadding {
             return (
                 eventIndex,
-                xEnd - SCREEN_WIDTH + edgePadding,
+                (eventRectangle.x + eventRectangle.width) - SCREEN_WIDTH + edgePadding,
                 duration,
                 startTime,
             )
         } 
+        
         // event is already in within visible screen area
-        else if let eventsNavigation {
-            return (
-                eventIndex,
-                shift: eventsNavigation.shift,
-                duration,
-                startTime,
-            )
-        }
-
-        return eventsNavigation
+        return (
+            eventIndex,
+            shift: eventsNavigation?.shift ?? 0,
+            duration,
+            startTime,
+        )
     }
 
     static func getEventRectangle(
         time: TimeInfo, 
         event: CalendarEvent,
-        eventsNavigation: EventsNavigation?,
+        eventsNavigation: EventsNavigation? = nil,
     ) -> Rectangle {
         guard let currentHour = time.components.hour,
             let currentMinute = time.components.minute,

@@ -2,7 +2,7 @@ import Foundation
 import CRayLib
 
 @MainActor private let shader = UIShaders.getShader(.waveEffect)
-@MainActor private let texture = LoadRenderTexture(Int32(SCREEN_WIDTH), Int32(CONTENT_HEIGHT))
+@MainActor private let backgroundTexture = LoadRenderTexture(Int32(SCREEN_WIDTH), Int32(CONTENT_HEIGHT))
 @MainActor private let centerPointLoc = GetShaderLocation(shader, "centerPoint")
 @MainActor private let timeLoc = GetShaderLocation(shader, "time")
 @MainActor private let baseColorLoc = GetShaderLocation(shader, "baseColor")
@@ -56,11 +56,11 @@ struct CalendarActiveEventAlarmEffect {
             let sourceRec = Rectangle(
                 x: 0, 
                 y: 0, 
-                width: Float(texture.texture.width), 
-                height: -Float(texture.texture.height)
+                width: Float(backgroundTexture.texture.width), 
+                height: -Float(backgroundTexture.texture.height)
             )
             let position = Vector2(x: 0, y: 0)
-            DrawTextureRec(texture.texture, sourceRec, position, .white)
+            DrawTextureRec(backgroundTexture.texture, sourceRec, position, .white)
         EndShaderMode()
     }
 }

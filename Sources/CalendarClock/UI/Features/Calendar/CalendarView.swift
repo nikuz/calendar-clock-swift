@@ -1,6 +1,14 @@
 import Foundation
 import CRayLib
 
+@MainActor private let shader = UIShaders.getShader(.scanlines)
+@MainActor private let backgroundTexture = LoadRenderTexture(Int32(SCREEN_WIDTH), Int32(CONTENT_HEIGHT))
+@MainActor private let blurTexture = LoadRenderTexture(Int32(SCREEN_WIDTH), Int32(CONTENT_HEIGHT))
+@MainActor private var horizontal = Vector2(x: 1.0, y: 0.0)
+@MainActor private var vertical = Vector2(x: 0.0, y: 1.0)
+@MainActor private var disableGrayscale: Int32 = 0
+@MainActor private var enableGrayscale: Int32 = 1
+
 @MainActor
 enum CalendarView {
     // static private let animationDuration = 1.0 // seconds
@@ -27,10 +35,15 @@ enum CalendarView {
                 let eventsOrder = CalendarUIUtils.getEventsOrder(events: payload.events, time: time)
                 let activeEvent = eventsOrder.activeEvent
                 let approachingEvent = eventsOrder.approachingEvent
-                if let flashingEvent = activeEvent ?? approachingEvent, KEY_ESCAPE.isPressed {
-                    appState.update { state in
-                        state.calendar.updatePayload { payload in
-                            payload.confirmedApproachingEventId = flashingEvent.event.id
+
+                if KEY_ESCAPE.isPressed {
+                    if eventsNavigation != nil {
+                        eventsNavigation = nil
+                    } else if let flashingEvent = activeEvent ?? approachingEvent {
+                        appState.update { state in
+                            state.calendar.updatePayload { payload in
+                                payload.confirmedApproachingEventId = flashingEvent.event.id
+                            }
                         }
                     }
                 }
@@ -67,7 +80,14 @@ enum CalendarView {
                 var outsideLeftEdgeIndex = 0
                 var outsideRightEdgeIndex = 0
                 
+                if eventsNavigation != nil {
+                    BeginTextureMode(backgroundTexture)
+                    ClearBackground(.blank) 
+                }
                 for (index, event) in payload.positionedEvents.enumerated() {
+                    if let eventsNavigation, eventsNavigation.eventIndex == index {
+                        continue
+                    }
                     CalendarEventCardComponent.draw(
                         positionedEvent: event, 
                         index: index, 
@@ -77,6 +97,34 @@ enum CalendarView {
                         eventsNavigation: eventsNavigation,
                         outsideLeftEdgeIndex: &outsideLeftEdgeIndex,
                         outsideRightEdgeIndex: &outsideRightEdgeIndex,
+                    )
+                }
+                if eventsNavigation != nil {
+                    EndTextureMode();
+                    BeginShaderMode(shader)
+                        let sourceRec = Rectangle(
+                            x: 0,
+                            y: 0,
+                            width: Float(backgroundTexture.texture.width),
+                            height: -Float(backgroundTexture.texture.height)
+                        )
+                        let position = Vector2(x: 0, y: 0)
+                        DrawTextureRec(backgroundTexture.texture, sourceRec, position, .white)
+                    EndShaderMode()
+                }
+
+                // selected event
+                if let eventsNavigation {
+                    CalendarEventCardComponent.draw(
+                        positionedEvent: payload.positionedEvents[eventsNavigation.eventIndex],
+                        index: eventsNavigation.eventIndex,
+                        time: time,
+                        appState: _appState,
+                        eventsOrder: eventsOrder,
+                        eventsNavigation: eventsNavigation,
+                        outsideLeftEdgeIndex: &outsideLeftEdgeIndex,
+                        outsideRightEdgeIndex: &outsideRightEdgeIndex,
+                        isSelected: true,
                     )
                 }
 

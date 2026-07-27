@@ -12,6 +12,7 @@ struct CalendarEventCardComponent {
         eventsNavigation: CalendarUIUtils.EventsNavigation? = nil,
         outsideLeftEdgeIndex: inout Int,
         outsideRightEdgeIndex: inout Int,
+        isSelected: Bool = false,
     ) {
         let event = positionedEvent.event
         guard let currentHour = time.components.hour,
@@ -31,7 +32,6 @@ struct CalendarEventCardComponent {
             event: event,
             eventsNavigation: eventsNavigation,
         )
-        // let eventRectangle = Rectangle(x: 0.0, y: 10.0, width: 100.0, height: 20.0)
         let xStart = eventRectangle.x
         let xEnd = eventRectangle.x + eventRectangle.width
 
@@ -43,15 +43,28 @@ struct CalendarEventCardComponent {
         let eventEndTime = eventEndHour * 60 + eventEndMinute
 
         let isNightTime = CalendarUIUtils.isNightTime(time)
-        let brightnessFactor = isNightTime ? appState.brightness.nightFactor : appState.brightness.dayFactor
-        var color = ColorBrightness(CALENDAR_EVENT_COLORS[index], brightnessFactor)
         let outsideEventSize: Float = 6.0
+        let outsideEventMargin = outsideEventSize * 1.5
+        let outsideEventCellSize = outsideEventSize * 2.5
+        var brightnessFactor = isNightTime ? appState.brightness.nightFactor : appState.brightness.dayFactor
+        if isSelected {
+            brightnessFactor = 0
+        }
+        var color = ColorBrightness(CALENDAR_EVENT_COLORS[index], brightnessFactor)
+        var borderColor = color
+        var fill: Color = .black
+
+        // gray out the past events
+        if currentTime > eventEndTime && !isSelected {
+            color = ColorBrightness(.darkGray, brightnessFactor)
+            borderColor = color
+        }
 
         // event is behind the left edge of the screen
         if xEnd <= 0 {
             let x = outsideEventSize / 2 + outsideEventSize
-            let y = outsideEventSize / 2 + outsideEventSize + (outsideEventSize * 2 + outsideEventSize / 2) * Float(outsideLeftEdgeIndex)
-            DrawCircleV(Vector2(x: x, y: y), outsideEventSize, ColorAlpha(color, 0.5));
+            let y = outsideEventMargin + outsideEventCellSize * Float(outsideLeftEdgeIndex)
+            DrawCircleV(Vector2(x: x, y: y), outsideEventSize, ColorAlpha(color, 0.5))
             outsideLeftEdgeIndex += 1
             return
         }
@@ -59,8 +72,8 @@ struct CalendarEventCardComponent {
         // event is behind the right edge of the screen
         if xStart > SCREEN_WIDTH {
             let x = SCREEN_WIDTH - outsideEventSize / 2 - outsideEventSize
-            let y = outsideEventSize / 2 + outsideEventSize + (outsideEventSize * 2 + outsideEventSize / 2) * Float(outsideRightEdgeIndex)
-            DrawCircleV(Vector2(x: x, y: y), outsideEventSize, ColorAlpha(color, 0.5));
+            let y = outsideEventMargin + outsideEventCellSize * Float(outsideRightEdgeIndex)
+            DrawCircleV(Vector2(x: x, y: y), outsideEventSize, ColorAlpha(color, 0.5))
             outsideRightEdgeIndex += 1
             return
         }
@@ -74,9 +87,6 @@ struct CalendarEventCardComponent {
             yStart += yStartOnePercent * (100.0 - positionedEvent.height)
         }
 
-        var borderColor = color
-        var fill: Color = .black
-
         let activeEvent = eventsOrder.activeEvent
         let approachingEvent = eventsOrder.approachingEvent
         let isActiveEvent =
@@ -86,12 +96,6 @@ struct CalendarEventCardComponent {
         if isActiveEvent && (appState.calendar.confirmedApproachingEventId == event.id || currentSecond % 2 == 0) {
             fill = color
             color = .black
-        }
-
-        // gray out the past events
-        if currentTime > eventEndTime {
-            color = ColorBrightness(.darkGray, brightnessFactor)
-            borderColor = color
         }
 
         let boxWidth = xEnd - xStart
@@ -134,11 +138,11 @@ struct CalendarEventCardComponent {
         )
 
         // border
-        DrawLineV(Vector2(x: xStart, y: yStart + chamferSize), Vector2(x: xStart, y: yEnd), borderColor)
-        DrawLineV(Vector2(x: chamferLeftXStart, y: yStart + chamferSize), Vector2(x: chamferLeftXEnd, y: yStart), borderColor)
-        DrawLineV(Vector2(x: xStart + chamferSize, y: yStart), Vector2(x: chamferRightXStart, y: yStart), borderColor)
-        DrawLineV(Vector2(x: chamferRightXStart, y: yStart), Vector2(x: chamferRightXEnd, y: yStart + chamferSize), borderColor)
-        DrawLineV(Vector2(x: xEnd, y: yStart + chamferSize), Vector2(x: xEnd, y: yEnd), borderColor)
+        DrawLineEx(Vector2(x: xStart, y: yStart + chamferSize), Vector2(x: xStart, y: yEnd), lineThickness, borderColor)
+        DrawLineEx(Vector2(x: chamferLeftXStart, y: yStart + chamferSize), Vector2(x: chamferLeftXEnd, y: yStart), lineThickness, borderColor)
+        DrawLineEx(Vector2(x: xStart + chamferSize, y: yStart), Vector2(x: chamferRightXStart, y: yStart), lineThickness, borderColor)
+        DrawLineEx(Vector2(x: chamferRightXStart, y: yStart), Vector2(x: chamferRightXEnd, y: yStart + chamferSize), lineThickness, borderColor)
+        DrawLineEx(Vector2(x: xEnd, y: yStart + chamferSize), Vector2(x: xEnd, y: yEnd), lineThickness, borderColor)
 
         let isTinyEvent = boxWidth <= 40.0
         let hPadding: Float = isTinyEvent ? 3.0 : 4.0
