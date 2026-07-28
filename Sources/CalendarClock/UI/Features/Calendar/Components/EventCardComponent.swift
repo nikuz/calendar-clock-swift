@@ -174,7 +174,7 @@ struct CalendarEventCardComponent {
 
         var endTimeX = xStart + hPadding + boxContentWidth - eventEndTimeStringSize
         var endTimeY = yStart + vPadding
-        if eventStartTimeStringSize + eventEndTimeStringSize + fontSize > boxContentWidth {
+        if eventStartTimeStringSize + eventEndTimeStringSize + characterWidth > boxContentWidth {
             endTimeX = xStart + hPadding
             endTimeY = yStart + vPadding + lineHeight
             timeSpace += lineHeight
@@ -216,7 +216,10 @@ struct CalendarEventCardComponent {
                     // add one more line that contains only last character
                     if curLineWidth + characterWidth * 2 > boxContentWidth {
                         curLine.trimPrefix(" ")
-                        lines.append(contentsOf: [curLine, "\(character)"])
+                        lines.append(curLine)
+                        if Float(lines.count) * lineHeight + lineHeight <= summaryBoxHeight {
+                            lines.append("\(character)")
+                        }
                     } else {
                         curLine.append(character)
                         curLine.trimPrefix(" ")
