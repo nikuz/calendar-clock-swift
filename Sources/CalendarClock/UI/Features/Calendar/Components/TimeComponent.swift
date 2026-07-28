@@ -39,15 +39,20 @@ struct CalendarTimeComponent {
         if let eventsNavigation {
             navigationShift = eventsNavigation.shift
         }
-        x -= navigationShift
+        x = round(x - navigationShift)
 
-        var textX = max(x - hoursTextSize.x - spacingTextSize.x / 2, 0)
-        textX = min(textX, SCREEN_WIDTH - timeTextSize.x)
-        textX = textX.rounded(.towardZero)
+        var textX = x - hoursTextSize.x - spacingTextSize.x / 2
+        if navigationShift == 0 {
+            textX = max(textX, 0)
+            textX = min(textX, SCREEN_WIDTH - timeTextSize.x)
+        }
         let textY = isNightTime ? CONTENT_HEIGHT / 2 - timeTextSize.y / 2 : 5.0
 
-        var lineX = max(x, hoursTextSize.x + spacingTextSize.x / 2)
-        lineX = min(lineX, SCREEN_WIDTH - minutesTextSize.x - spacingTextSize.x / 2)
+        var lineX = x
+        if navigationShift == 0 {
+            lineX = max(lineX, hoursTextSize.x + spacingTextSize.x / 2)
+            lineX = min(lineX, SCREEN_WIDTH - minutesTextSize.x - spacingTextSize.x / 2)
+        }
 
         let brightnessFactor = isNightTime ? appState.brightness.nightFactor : appState.brightness.dayFactor
         var color = ColorBrightness(isNightTime ? .red : .white, brightnessFactor)

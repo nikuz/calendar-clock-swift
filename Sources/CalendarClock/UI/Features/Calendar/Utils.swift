@@ -139,11 +139,10 @@ enum CalendarUIUtils {
             }
         }
 
-        guard let eventIndex else {
-            return eventsNavigation
-        }
-
-        if eventIndex < 0 || eventIndex == events.count {
+        guard let eventIndex, 
+            eventIndex >= 0,
+            eventIndex < events.count
+        else {
             return eventsNavigation
         }
 
@@ -157,9 +156,10 @@ enum CalendarUIUtils {
         let edgePadding: Float = 30.0
         let duration = 2.0
         let startTime = GetTime()
+        let shift = eventsNavigation?.shift ?? 0
 
         // event is behind the left edge of the screen
-        if eventRectangle.x < edgePadding {
+        if eventRectangle.x - shift < edgePadding {
             return (
                 eventIndex,
                 eventRectangle.x - edgePadding,
@@ -168,7 +168,7 @@ enum CalendarUIUtils {
             )
         }
         // event is behind the right edge of the screen
-        else if eventRectangle.x + eventRectangle.width > SCREEN_WIDTH - edgePadding {
+        else if eventRectangle.x - shift + eventRectangle.width > SCREEN_WIDTH - edgePadding {
             return (
                 eventIndex,
                 (eventRectangle.x + eventRectangle.width) - SCREEN_WIDTH + edgePadding,
