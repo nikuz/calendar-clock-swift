@@ -34,7 +34,8 @@ struct CalendarEventCardComponent {
         )
         let xStart = eventRectangle.x
         let xEnd = eventRectangle.x + eventRectangle.width
-
+        let boxWidth = eventRectangle.width
+        
         let eventStartHour = calendar.component(.hour, from: eventStartDate)
         let eventStartMinute = calendar.component(.minute, from: eventStartDate)
 
@@ -82,7 +83,9 @@ struct CalendarEventCardComponent {
         let yEnd = eventRectangle.y + eventRectangle.height
 
         // less than 100%
-        if positionedEvent.height < 100 {
+        if isSelected {
+            yStart = yStart - CONTENT_HEIGHT / 100 * 5
+        } else if positionedEvent.height < 100 {
             let yStartOnePercent = yStart / 100
             yStart += yStartOnePercent * (100.0 - positionedEvent.height)
         }
@@ -98,19 +101,18 @@ struct CalendarEventCardComponent {
             color = .black
         }
 
-        let boxWidth = xEnd - xStart
         let chamferSize: Float = 4.0
         let lineThickness: Float = 1.0
 
-        let chamferLeftXStart = xStart
-        let chamferLeftXEnd = xStart + chamferSize
+        let chamferLeftXStart = xStart + lineThickness
+        let chamferLeftXEnd = xStart + chamferSize + lineThickness
 
         #if os(Linux)
-            let chamferRightXStart = xEnd - chamferSize + lineThickness
-            let chamferRightXEnd = xEnd + lineThickness
-        #else
             let chamferRightXStart = xEnd - chamferSize
             let chamferRightXEnd = xEnd
+        #else
+            let chamferRightXStart = xEnd - chamferSize - lineThickness
+            let chamferRightXEnd = xEnd - lineThickness
         #endif
 
         // filling
@@ -138,11 +140,36 @@ struct CalendarEventCardComponent {
         )
 
         // border
-        DrawLineEx(Vector2(x: xStart, y: yStart + chamferSize), Vector2(x: xStart, y: yEnd), lineThickness, borderColor)
-        DrawLineEx(Vector2(x: chamferLeftXStart, y: yStart + chamferSize), Vector2(x: chamferLeftXEnd, y: yStart), lineThickness, borderColor)
-        DrawLineEx(Vector2(x: xStart + chamferSize, y: yStart), Vector2(x: chamferRightXStart, y: yStart), lineThickness, borderColor)
-        DrawLineEx(Vector2(x: chamferRightXStart, y: yStart), Vector2(x: chamferRightXEnd, y: yStart + chamferSize), lineThickness, borderColor)
-        DrawLineEx(Vector2(x: xEnd, y: yStart + chamferSize), Vector2(x: xEnd, y: yEnd), lineThickness, borderColor)
+        DrawLineEx(
+            Vector2(x: xStart + lineThickness, y: yStart + chamferSize), 
+            Vector2(x: xStart + lineThickness, y: yEnd), 
+            lineThickness, 
+            borderColor
+        )
+        DrawLineEx(
+            Vector2(x: chamferLeftXStart, y: yStart + chamferSize), 
+            Vector2(x: chamferLeftXEnd, y: yStart), 
+            lineThickness, 
+            borderColor
+        )
+        DrawLineEx(
+            Vector2(x: xStart + chamferSize, y: yStart), 
+            Vector2(x: chamferRightXStart, y: yStart), 
+            lineThickness, 
+            borderColor
+        )
+        DrawLineEx(
+            Vector2(x: chamferRightXStart, y: yStart), 
+            Vector2(x: chamferRightXEnd, y: yStart + chamferSize), 
+            lineThickness, 
+            borderColor
+        )
+        DrawLineEx(
+            Vector2(x: xEnd - lineThickness, y: yStart + chamferSize), 
+            Vector2(x: xEnd - lineThickness, y: yEnd), 
+            lineThickness, 
+            borderColor
+        )
 
         let isTinyEvent = boxWidth <= 40.0
         let hPadding: Float = isTinyEvent ? 3.0 : 4.0
@@ -154,11 +181,7 @@ struct CalendarEventCardComponent {
         let font = isTinyEvent ? silkscreen3x7Font : unscii8Font
         let fontSize: Float = isTinyEvent ? 9.0 : 8.0
         let characterWidth: Float = isTinyEvent ? 4.0 : 8.0
-        var boxContentWidth = boxWidth - hPadding * 2.0
-
-        while boxContentWidth.truncatingRemainder(dividingBy: fontSize) != 0 {
-            boxContentWidth += 1.0
-        }
+        let boxContentWidth = boxWidth - hPadding * 2.0
 
         // time
         var eventStartTimeString = "\(CalendarUIUtils.formatTo12H(eventStartHour))"

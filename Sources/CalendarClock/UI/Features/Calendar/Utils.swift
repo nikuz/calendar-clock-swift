@@ -211,22 +211,22 @@ enum CalendarUIUtils {
         let startOfToday = calendar.startOfDay(for: Date())
 
         let startTimeSeconds = eventStartDate.timeIntervalSince1970 - startOfToday.timeIntervalSince1970
-        let startPosition = round(Utilities.remapValue(
+        let startPosition = Utilities.remapValue(
             value: Float(startTimeSeconds / 60),
             inMin: DAY_START_TIME,
             inMax: DAY_END_TIME,
             outMin: 0,
             outMax: SCREEN_WIDTH * EVENTS_ZOOM,
-        ))
+        )
 
         let endTimeSeconds = eventEndDate.timeIntervalSince1970 - startOfToday.timeIntervalSince1970
-        let endPosition = round(Utilities.remapValue(
+        let endPosition = Utilities.remapValue(
             value: Float(endTimeSeconds / 60),
             inMin: DAY_START_TIME,
             inMax: DAY_END_TIME,
             outMin: 0,
             outMax: SCREEN_WIDTH * EVENTS_ZOOM
-        ))
+        )
 
         var xStart = startPosition - timeMargin
         var xEnd = endPosition - timeMargin
@@ -236,15 +236,10 @@ enum CalendarUIUtils {
             xEnd -= eventsNavigation.shift
         }
 
-        var width = xEnd - xStart
-        if width.truncatingRemainder(dividingBy: 2.0) != 0.0 {
-            width -= 1.0
-        }
-        
         return Rectangle(
-            x: xStart, 
+            x: round(xStart), 
             y: CONTENT_HEIGHT - EVENTS_HEIGHT, 
-            width: width, 
+            width: round(xEnd - xStart), 
             height: EVENTS_HEIGHT
         )
     }
