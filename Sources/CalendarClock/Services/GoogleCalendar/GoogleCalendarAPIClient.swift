@@ -224,8 +224,8 @@ actor GoogleCalendarAPIClient {
         let startOfToday = Calendar.current.startOfDay(for: Date())
 
         for event in events {
-            // canceled event, all day events, and event duplicates
-            if event.status == .canceled || eventTags.contains(event.etag) || event.end.dateTime == nil {
+            // canceled event, all day events, transparent events, and event duplicates
+            if event.status == .canceled || event.isAllDay || event.transparency == .transparent || eventTags.contains(event.etag) {
                 continue
             }
             // outdated events
