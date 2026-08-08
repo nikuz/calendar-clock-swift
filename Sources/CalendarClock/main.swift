@@ -1,9 +1,9 @@
 import Foundation
 
-let appState = AppState()
-let calendarService = GoogleCalendarService()
+private let appState = AppState()
+private let calendarService = GoogleCalendarService()
 
-let calendarBackgroundTask = Task.detached {
+private let calendarBackgroundTask = Task.detached {
     do {
         try await calendarService.start(appState: appState)
     } catch {
@@ -12,7 +12,7 @@ let calendarBackgroundTask = Task.detached {
     }
 }
 
-let brightnessBackgroundTask = Task.detached {
+private let brightnessBackgroundTask = Task.detached {
     do {
         let provider = try BrightnessProvider(address: .low, mode: .continuousHighRes)
         await provider.startReadingLoop(interval: 0.1) { luxValue in
@@ -25,7 +25,7 @@ let brightnessBackgroundTask = Task.detached {
     }
 }
 
-let sigintSource = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
+private let sigintSource = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
 signal(SIGINT, SIG_IGN)
 sigintSource.setEventHandler {
     Task {
@@ -36,7 +36,7 @@ sigintSource.setEventHandler {
 }
 sigintSource.resume()
 
-let renderer = Renderer(appState: appState)
+private let renderer = Renderer(appState: appState)
 renderer.start()
 
 // normal cleanup

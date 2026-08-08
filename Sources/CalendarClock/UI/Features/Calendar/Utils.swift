@@ -2,7 +2,12 @@ import Foundation
 import CRayLib
 
 enum CalendarUIUtils {
-    typealias TimeInfo = (now: Date, components: DateComponents)
+    struct TimeInfo {
+        let now: Date
+        let hour: Int
+        let minute: Int
+        let second: Int
+    }
 
     static func getTime() -> TimeInfo {
         let mousePosition = GetMousePosition()
@@ -40,17 +45,16 @@ enum CalendarUIUtils {
             ) ?? timeWithMinutes
         }
 
-        return (
-            now,
-            calendar.dateComponents([.hour, .minute, .second], from: now)
+        return TimeInfo(
+            now: now,
+            hour: calendar.component(.hour, from: now),
+            minute: calendar.component(.minute, from: now),
+            second: calendar.component(.second, from: now),
         )
     }
 
     static func isNightTime(_ time: TimeInfo) -> Bool {
-        guard let hour = time.components.hour else {
-            return true
-        }
-        return hour < MORNING_HOUR || hour >= EVENING_HOUR;
+        return time.hour < MORNING_HOUR || time.hour >= EVENING_HOUR;
     }
 
     static func formatTo12H(_ hour: Int) -> Int {
@@ -191,9 +195,7 @@ enum CalendarUIUtils {
         event: CalendarEvent,
         eventsNavigation: EventsNavigation? = nil,
     ) -> Rectangle {
-        guard let currentHour = time.components.hour,
-            let currentMinute = time.components.minute,
-            let eventStartDate = event.start.date,
+        guard let eventStartDate = event.start.date,
             let eventEndDate = event.end.date
         else {
             return Rectangle()
@@ -201,7 +203,7 @@ enum CalendarUIUtils {
 
         let calendar = Calendar.current
         let timeMargin = round(Utilities.remapValue(
-            value: Float(currentHour * 60 + currentMinute),
+            value: Float(time.hour * 60 + time.minute),
             inMin: DAY_START_TIME,
             inMax: DAY_END_TIME,
             outMin: 0,

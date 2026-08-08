@@ -7,6 +7,7 @@ enum CalendarView {
     // static private var animationStartTime = GetTime()
     // static private var animationDirection: Float = 1
     static private var eventsNavigation: CalendarUIUtils.EventsNavigation?
+    static private var selectedEventIndex: Int?
 
     static func draw(appState: AppState) {
         let _appState = appState.current
@@ -25,35 +26,14 @@ enum CalendarView {
 
             case .loaded(let payload):
                 let eventsOrder = CalendarUIUtils.getEventsOrder(events: payload.events, time: time)
-                let activeEvent = eventsOrder.activeEvent
-                let approachingEvent = eventsOrder.approachingEvent
-
-                if KEY_ESCAPE.isPressed {
-                    if eventsNavigation != nil {
-                        eventsNavigation = nil
-                    } else if let flashingEvent = activeEvent ?? approachingEvent {
-                        appState.update { state in
-                            state.calendar.updatePayload { payload in
-                                payload.confirmedApproachingEventId = flashingEvent.event.id
-                            }
-                        }
-                    }
-                }
-                if KEY_B.isPressed {
-                    appState.update { state in
-                        state.backgroundVisible = !state.backgroundVisible
-                    }
-                }
-                if KEY_LEFT.isPressed || KEY_RIGHT.isPressed {
-                    eventsNavigation = CalendarUIUtils.getEventsNavigation(
-                        time: time, 
-                        events: payload.events,
-                        eventsOrder: eventsOrder,
-                        eventsNavigation: eventsNavigation,
-                        direction: KEY_LEFT.isPressed ? .left : .right,
-                    )
-                }
-
+                
+                self.handleKeyboardShortcuts(
+                    appState: appState,
+                    events: payload.events,
+                    eventsOrder: eventsOrder,
+                    time: time,
+                )
+                
                 CalendarBackground.draw(time: time, appState: _appState)
                 CalendarActiveEventAlarmEffect.draw(
                     time: time, 
@@ -61,6 +41,7 @@ enum CalendarView {
                     eventsOrder: eventsOrder,
                     eventsNavigation: eventsNavigation,
                 )
+                // draw time line behind the active event
                 if eventsOrder.activeEvent != nil {
                     CalendarTimeComponent.draw(
                         time: time, 
@@ -71,25 +52,23 @@ enum CalendarView {
                 }
                 CalendarActiveEventAlarm.play(appState: _appState, eventsOrder: eventsOrder)
 
-                var outsideLeftEdgeIndex = 0
-                var outsideRightEdgeIndex = 0
+                var outsideLeftEdgeIndex: Int = 0
+                var outsideRightEdgeIndex: Int = 0
                 
                 for (index, event) in payload.positionedEvents.enumerated() {
-                    if let eventsNavigation, eventsNavigation.eventIndex == index {
-                        continue
-                    }
-                    CalendarEventCardComponent.draw(
-                        positionedEvent: event, 
-                        index: index, 
-                        time: time, 
+                    CalendarEventCardComponent(
+                        positionedEvent: event,
+                        index: index,
+                        time: time,
                         appState: _appState,
                         eventsOrder: eventsOrder,
                         eventsNavigation: eventsNavigation,
                         outsideLeftEdgeIndex: &outsideLeftEdgeIndex,
                         outsideRightEdgeIndex: &outsideRightEdgeIndex,
-                    )
+                    )?.draw()
                 }
 
+                // draw time above event border if time is outside active event boundaries
                 if eventsOrder.activeEvent == nil {
                     CalendarTimeComponent.draw(
                         time: time, 
@@ -99,19 +78,34 @@ enum CalendarView {
                     )
                 }
                 
-                // selected event
                 if let eventsNavigation {
-                    CalendarEventCardComponent.draw(
-                        positionedEvent: payload.positionedEvents[eventsNavigation.eventIndex],
-                        index: eventsNavigation.eventIndex,
-                        time: time,
-                        appState: _appState,
-                        eventsOrder: eventsOrder,
-                        eventsNavigation: eventsNavigation,
-                        outsideLeftEdgeIndex: &outsideLeftEdgeIndex,
-                        outsideRightEdgeIndex: &outsideRightEdgeIndex,
-                        isSelected: true,
-                    )
+                    if let selectedEventIndex, eventsNavigation.eventIndex == selectedEventIndex {
+                        // selected event
+                        CalendarEventCardComponent(
+                            positionedEvent: payload.positionedEvents[selectedEventIndex],
+                            index: selectedEventIndex,
+                            time: time,
+                            appState: _appState,
+                            eventsOrder: eventsOrder,
+                            eventsNavigation: eventsNavigation,
+                            outsideLeftEdgeIndex: &outsideLeftEdgeIndex,
+                            outsideRightEdgeIndex: &outsideRightEdgeIndex,
+                            isSelected: true,
+                        )?.draw()
+                    } else {
+                        // highlighted event
+                        CalendarEventCardComponent(
+                            positionedEvent: payload.positionedEvents[eventsNavigation.eventIndex],
+                            index: eventsNavigation.eventIndex,
+                            time: time,
+                            appState: _appState,
+                            eventsOrder: eventsOrder,
+                            eventsNavigation: eventsNavigation,
+                            outsideLeftEdgeIndex: &outsideLeftEdgeIndex,
+                            outsideRightEdgeIndex: &outsideRightEdgeIndex,
+                            isHighlighted: true,
+                        )?.draw()
+                    }
                 }
 
             case .failed(let error):
@@ -139,4 +133,43 @@ enum CalendarView {
         // }
     }
 
+    static func handleKeyboardShortcuts(
+        appState: AppState,
+        events: [CalendarEvent],
+        eventsOrder: CalendarUIUtils.EventsOrder,
+        time: CalendarUIUtils.TimeInfo,
+    ) {
+        if KEY_ESCAPE.isPressed {
+            if eventsNavigation != nil {
+                eventsNavigation = nil
+                selectedEventIndex = nil
+            } else if let flashingEvent = eventsOrder.activeEvent ?? eventsOrder.approachingEvent {
+                appState.update { state in
+                    state.calendar.updatePayload { payload in
+                        payload.confirmedApproachingEventId = flashingEvent.event.id
+                    }
+                }
+            }
+        }
+        if KEY_B.isPressed {
+            appState.update { state in
+                state.backgroundVisible = !state.backgroundVisible
+            }
+        }
+        if KEY_LEFT.isPressed || KEY_RIGHT.isPressed {
+            eventsNavigation = CalendarUIUtils.getEventsNavigation(
+                time: time, 
+                events: events,
+                eventsOrder: eventsOrder,
+                eventsNavigation: eventsNavigation,
+                direction: KEY_LEFT.isPressed ? .left : .right,
+            )
+            if eventsNavigation?.eventIndex != selectedEventIndex {
+                selectedEventIndex = nil
+            }
+        }
+        if let eventsNavigation, KEY_ENTER.isPressed {
+            selectedEventIndex = eventsNavigation.eventIndex
+        }
+    }
 }

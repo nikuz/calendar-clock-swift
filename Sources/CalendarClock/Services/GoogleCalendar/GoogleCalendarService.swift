@@ -15,7 +15,7 @@ actor GoogleCalendarService {
         let calendarProvider = try GoogleCalendarAPIClient()
         self.calendarProvider = calendarProvider
 
-        try await loadEvents()
+        try await loadEvents(appState)
         
         #if !DEBUG
             try await calendarProvider.watch(ngrokCredentials: ngrokCredentials)
@@ -27,7 +27,7 @@ actor GoogleCalendarService {
             print("Received Google Channel ID: \(channelId)")
             Task {
                 do {
-                    try await self.loadEvents()
+                    try await self.loadEvents(appState)
                 } catch {
                     print("Webhook fetch failed: \(error)")
                 }
@@ -38,7 +38,7 @@ actor GoogleCalendarService {
         self.webhookServer = server
         
         self.startWatchChannelsExpirationChecking()
-        self.startDateChangeChecking()
+        self.startDateChangeChecking(appState)
     }
     
     private func startWatchChannelsExpirationChecking() {
@@ -52,14 +52,14 @@ actor GoogleCalendarService {
         }
     }
     
-    private func startDateChangeChecking() {
+    private func startDateChangeChecking(_ appState: AppState) {
         watchDateChangeTask = Task {
             while !Task.isCancelled {
                 let calendar = Calendar.current
                 let cachedDay = calendar.component(.day, from: cachedDate)
                 let currentDay = calendar.component(.day, from: Date())
                 if cachedDay != currentDay {
-                    try await loadEvents()
+                    try await loadEvents(appState)
                     cachedDate = Date()
                 }
                 try await Task.sleep(for: .seconds(3600)) // one hour
@@ -67,7 +67,7 @@ actor GoogleCalendarService {
         }
     }
 
-    private func loadEvents() async throws {
+    private func loadEvents(_ appState: AppState) async throws {
         if let loadedEvents = try await calendarProvider?.fetchEvents() {
             appState.update { state in
                 state.calendar.updatePayload { payload in 

@@ -6,7 +6,9 @@ enum AppStateCalendar: Sendable {
     case failed(any Error & Sendable)
     
     mutating func updatePayload(_ transform: (inout CalendarPayload) -> Void) {
-        var payload = CalendarPayload()
+        var payload = CalendarPayload(
+            loadTime: Date().timeIntervalSince1970,
+        )
         
         if case .loaded(let existing) = self {
             payload = existing
@@ -36,6 +38,7 @@ struct CalendarPayload: Sendable {
     var events: [CalendarEvent] = [] {
         didSet { processEvents() }
     }
+    var loadTime: Double
     var confirmedApproachingEventId: String?
 
     private(set) var positionedEvents: [PositionedCalendarEvent] = []

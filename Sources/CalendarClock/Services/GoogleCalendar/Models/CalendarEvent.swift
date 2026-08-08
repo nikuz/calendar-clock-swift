@@ -21,7 +21,8 @@ struct CalendarEvent: Decodable, Identifiable, Sendable {
         }
 
         guard let startDate = start.date,
-              let endDate = end.date else {
+              let endDate = end.date 
+        else {
             return false
         }
 
@@ -50,6 +51,8 @@ struct CalendarEvent: Decodable, Identifiable, Sendable {
         let dateOnly: String?
         let dateTime: String?
         let timeZone: String?
+        let hour: Int?
+        let minute: Int?
 
         let isAllDay: Bool
         let date: Date?
@@ -96,6 +99,14 @@ struct CalendarEvent: Decodable, Identifiable, Sendable {
             let timeZone = decodedTimeZone.flatMap(TimeZone.init(identifier:)) ?? .current
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = timeZone
+
+            if let parsedDate {
+                self.hour = calendar.component(.hour, from: parsedDate)
+                self.minute = calendar.component(.minute, from: parsedDate)
+            } else {
+                self.hour = nil
+                self.minute = nil
+            }
 
             let isMidnightDate = parsedDate.map { calendar.startOfDay(for: $0) == $0 } ?? false
             self.isAllDay = decodedDateOnly != nil || isMidnightDate

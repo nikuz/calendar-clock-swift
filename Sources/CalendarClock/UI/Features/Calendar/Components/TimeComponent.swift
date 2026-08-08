@@ -10,8 +10,8 @@ struct CalendarTimeComponent {
         eventsNavigation: CalendarUIUtils.EventsNavigation? = nil,
     ) {
         let unscii16Font = UIFonts.getFont(.unscii16)
-        let hour = time.components.hour ?? 0
-        let minute = time.components.minute ?? 0
+        let hour = time.hour
+        let minute = time.minute
         let hour12hFormat = CalendarUIUtils.formatTo12H(hour)
         let isNightTime = CalendarUIUtils.isNightTime(time)
         let fontSize: Float = isNightTime ? 80.0 : 48.0
