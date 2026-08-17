@@ -1,6 +1,9 @@
 import Foundation
 import CRayLib
 
+@MainActor let eventApproachingSound = UISounds.getSound(.eventApproaching)
+@MainActor let eventAlarmSound = UISounds.getSound(.eventAlarm)
+
 @MainActor
 enum CalendarActiveEventAlarm {
     private static let maxAlarmDuration = 60.0 // seconds
@@ -12,8 +15,6 @@ enum CalendarActiveEventAlarm {
         appState: AppStateData,
         eventsOrder: CalendarUIUtils.EventsOrder,
     ) {
-        let eventApproachingSound = UISounds.getSound(.eventApproaching)
-        let eventAlarmSound = UISounds.getSound(.eventAlarm)
         let confirmedEvent = appState.calendar.confirmedApproachingEventId
 
         if let approachingEvent = eventsOrder.approachingEvent {
@@ -34,19 +35,19 @@ enum CalendarActiveEventAlarm {
             return
         }
 
-        let alarmDuration = GetTime() - alarmStartTime
         if let activeEvent = eventsOrder.activeEvent {
             if alarmStarted && lastActiveEventIndex != activeEvent.index {
                 resetAlarm()
             }
+            if !alarmStarted {
+                startAlarm(activeEvent.index)
+            }
+            let alarmDuration = GetTime() - alarmStartTime
             if (
-                activeEvent.event.id != confirmedEvent 
-                && alarmDuration < maxAlarmDuration 
+                activeEvent.event.id != confirmedEvent
+                && alarmDuration < maxAlarmDuration
                 && !IsSoundPlaying(eventAlarmSound)
             ) {
-                if !alarmStarted {
-                    startAlarm(activeEvent.index)
-                }
                 PlaySound(eventAlarmSound)
             } else if (
                 activeEvent.event.id == confirmedEvent 
