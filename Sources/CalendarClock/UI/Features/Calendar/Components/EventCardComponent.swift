@@ -81,14 +81,19 @@ struct CalendarEventCardComponent {
     private let eventTime: EventCardTime
     private var eventPosition: CalendarUIUtils.EventPosition
     private var dayStart: Date
+    private let summary: String
     private var geometry: EventCardGeometry
     private var style: EventCardStyle
-    private var yStart: Float = 0.0
+    private var defaultYStart: Float = 0.0
     private var highlightedYStart: Float = 0.0
     private var startTimeString = ""
     private var endTimeString = ""
     private var endTimeOffset = Vector2()
     private var timeSpace: Float = 0.0
+
+    // calculated when the event is created and when it gets highlighted or selected,
+    // those are the only states that change the height of the summary box
+    private var summaryLines: [String] = []
 
     // updated on every frame
     private var isHighlighted = false
@@ -117,6 +122,7 @@ struct CalendarEventCardComponent {
         self.eventPosition = eventPosition
         dayStart = startOfDay
         baseColor = CALENDAR_EVENT_COLORS[index % CALENDAR_EVENT_COLORS.count]
+        summary = event.summary ?? "(untitled)"
 
         eventTime = EventCardTime(
             startHour: eventStartHour,
@@ -152,12 +158,13 @@ struct CalendarEventCardComponent {
         geometry.yEnd = boxTop + EVENTS_HEIGHT
 
         highlightedYStart = boxTop - CONTENT_HEIGHT / 100 * 5
-        yStart = boxTop
+        defaultYStart = boxTop
         // less than 100%
         if boxHeight < 100 {
             let yStartOnePercent = boxTop / 100
-            yStart += yStartOnePercent * (100.0 - boxHeight)
+            defaultYStart += yStartOnePercent * (100.0 - boxHeight)
         }
+        geometry.yStart = defaultYStart
 
         startTimeString = "\(CalendarUIUtils.formatTo12H(eventTime.startHour))"
         if eventTime.startMinute != 0 {
@@ -182,6 +189,58 @@ struct CalendarEventCardComponent {
                 y: style.vPadding,
             )
         }
+
+        updateSummaryLines()
+    }
+
+    /// Splits the summary into the lines that fit into the card.
+    /// Only depends on the size of the summary box, so it survives until the
+    /// card is highlighted or selected.
+    private mutating func updateSummaryLines() {
+        let summaryBoxHeight = geometry.yEnd - geometry.yStart - timeSpace
+        let summaryLength = summary.count
+        var lines: [String] = []
+        var curLine = ""
+        var curLineWidth: Float = 0.0
+        var isFullSummaryFit = false
+
+        for (index, character) in summary.enumerated() {
+            if curLineWidth + style.characterWidth > geometry.boxContentWidth || index == summaryLength - 1 {
+                if index == summaryLength - 1 {
+                    // if adding last character exceeds the content width,
+                    // append current line to the list of lines and,
+                    // add one more line that contains only last character
+                    if curLineWidth + style.characterWidth * 2 > geometry.boxContentWidth {
+                        curLine.trimPrefix(" ")
+                        lines.append(curLine)
+                        if Float(lines.count) * style.lineHeight + style.lineHeight <= summaryBoxHeight {
+                            lines.append("\(character)")
+                        }
+                    } else {
+                        curLine.append(character)
+                        curLine.trimPrefix(" ")
+                        lines.append(curLine)
+                    }
+                    isFullSummaryFit = true
+                } else {
+                    curLine.trimPrefix(" ")
+                    lines.append(curLine)
+                }
+                curLine = ""
+                curLineWidth = 0
+                if Float(lines.count + 1) * style.lineHeight >= summaryBoxHeight {
+                    if !isFullSummaryFit {
+                        let lastLine = lines[lines.count - 1]
+                        lines[lines.count - 1] = lastLine.dropLast(3) + "..."
+                    }
+                    break
+                }
+            }
+            curLine.append(character)
+            curLineWidth += style.characterWidth
+        }
+
+        summaryLines = lines
     }
 
     mutating func update(
@@ -200,10 +259,18 @@ struct CalendarEventCardComponent {
             self.eventPosition = eventPosition
         }
 
+        let wasHighlighted = isHighlighted
+        let wasSelected = isSelected
         isHighlighted = context.highlightedEventIndex == index
         isSelected = context.selectedEventIndex == index
 
         updateGeometry(context: context)
+
+        // the summary box changed its height, the summary has to be re-wrapped
+        if wasHighlighted != isHighlighted || wasSelected != isSelected {
+            updateSummaryLines()
+        }
+
         updateStyle(context: context)
         updateOutsideEdges(leftEdgeCounter: &leftEdgeCounter, rightEdgeCounter: &rightEdgeCounter)
     }
@@ -213,7 +280,7 @@ struct CalendarEventCardComponent {
 
         geometry.xStart = xStart
         geometry.xEnd = xStart + geometry.boxWidth
-        geometry.yStart = isHighlighted ? highlightedYStart : yStart
+        geometry.yStart = isHighlighted ? highlightedYStart : defaultYStart
     }
 
     private mutating func updateStyle(context: Context) {
@@ -265,7 +332,7 @@ struct CalendarEventCardComponent {
         } else {
             drawBox()
             drawTime()
-            drawSummary(timeSpace: timeSpace)
+            drawSummary()
         }
     }
 
@@ -382,51 +449,8 @@ struct CalendarEventCardComponent {
         )
     }
 
-    private func drawSummary(timeSpace: Float) {
-        let summaryBoxHeight = geometry.yEnd - geometry.yStart - timeSpace
-        let summary = event.summary ?? "(untitled)"
-        var lines: [String] = []
-        var curLine = ""
-        var curLineWidth: Float = 0.0
-        var isFullSummaryFit = false
-
-        for (index, character) in summary.enumerated() {
-            if curLineWidth + style.characterWidth > geometry.boxContentWidth || index == summary.count - 1 {
-                if index == summary.count - 1 {
-                    // if adding last character exceeds the content width,
-                    // append current line to the list of lines and,
-                    // add one more line that contains only last character
-                    if curLineWidth + style.characterWidth * 2 > geometry.boxContentWidth {
-                        curLine.trimPrefix(" ")
-                        lines.append(curLine)
-                        if Float(lines.count) * style.lineHeight + style.lineHeight <= summaryBoxHeight {
-                            lines.append("\(character)")
-                        }
-                    } else {
-                        curLine.append(character)
-                        curLine.trimPrefix(" ")
-                        lines.append(curLine)
-                    }
-                    isFullSummaryFit = true
-                } else {
-                    curLine.trimPrefix(" ")
-                    lines.append(curLine)
-                }
-                curLine = ""
-                curLineWidth = 0
-                if Float(lines.count + 1) * style.lineHeight >= summaryBoxHeight {
-                    if !isFullSummaryFit {
-                        let lastLine = lines[lines.count - 1]
-                        lines[lines.count - 1] = lastLine.dropLast(3) + "..."
-                    }
-                    break
-                }
-            }
-            curLine.append(character)
-            curLineWidth += style.characterWidth
-        }
-
-        for (index, line) in lines.reversed().enumerated() {
+    private func drawSummary() {
+        for (index, line) in summaryLines.reversed().enumerated() {
             let lineX = geometry.xStart + style.hPadding
             let lineY = geometry.yEnd - (style.lineHeight * Float(index + 1))
             DrawTextEx(
