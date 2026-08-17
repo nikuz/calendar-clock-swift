@@ -202,13 +202,13 @@ enum CalendarUIUtils {
         }
 
         let calendar = Calendar.current
-        let timeMargin = round(Utilities.remapValue(
+        let timeMargin = Utilities.remapValue(
             value: Float(time.hour * 60 + time.minute),
             inMin: DAY_START_TIME,
             inMax: DAY_END_TIME,
             outMin: 0,
             outMax: (SCREEN_WIDTH * EVENTS_ZOOM) / (EVENTS_ZOOM / (EVENTS_ZOOM - 1)),
-        ))
+        )
 
         let startOfToday = calendar.startOfDay(for: Date())
 

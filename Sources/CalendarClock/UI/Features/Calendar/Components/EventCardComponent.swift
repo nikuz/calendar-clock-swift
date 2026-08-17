@@ -210,70 +210,67 @@ struct CalendarEventCardComponent {
         let chamferSize: Float = 4.0
         let lineThickness: Float = 1.0
 
-        let chamferLeftXStart = geometry.xStart + lineThickness
-        let chamferLeftXEnd = geometry.xStart + chamferSize + lineThickness
+        let xStart = geometry.xStart
+        let xEnd = geometry.xEnd
+        let yStart = geometry.yStart
+        let yEnd = geometry.yEnd
+        let sideHeight = yEnd - yStart - chamferSize
 
-        #if os(Linux)
-            let chamferRightXStart = geometry.xEnd - chamferSize
-            let chamferRightXEnd = geometry.xEnd
-        #else
-            let chamferRightXStart = geometry.xEnd - chamferSize - lineThickness
-            let chamferRightXEnd = geometry.xEnd - lineThickness
-        #endif
+        let chamferLeftXEnd = xStart + chamferSize
+        let chamferRightXStart = xEnd - chamferSize
 
         // filling
         DrawRectangleV(
-            Vector2(x: geometry.xStart, y: geometry.yStart + chamferSize), 
-            Vector2(x: geometry.boxWidth, y: geometry.yEnd - geometry.yStart), 
+            Vector2(x: xStart, y: yStart + chamferSize),
+            Vector2(x: geometry.boxWidth, y: sideHeight),
             style.fill
         )
         DrawRectangleV(
-            Vector2(x: chamferLeftXEnd, y: geometry.yStart), 
-            Vector2(x: chamferRightXStart - chamferLeftXEnd, y: geometry.yEnd - geometry.yStart), 
+            Vector2(x: chamferLeftXEnd, y: yStart),
+            Vector2(x: chamferRightXStart - chamferLeftXEnd, y: chamferSize),
             style.fill
         )
         DrawTriangle(
-            Vector2(x: chamferLeftXEnd, y: geometry.yStart + chamferSize),
-            Vector2(x: chamferLeftXEnd, y: geometry.yStart),
-            Vector2(x: chamferLeftXStart, y: geometry.yStart + chamferSize),
+            Vector2(x: chamferLeftXEnd, y: yStart + chamferSize),
+            Vector2(x: chamferLeftXEnd, y: yStart),
+            Vector2(x: xStart, y: yStart + chamferSize),
             style.fill
         )
         DrawTriangle(
-            Vector2(x: chamferRightXEnd, y: geometry.yStart + chamferSize),
-            Vector2(x: chamferRightXStart, y: geometry.yStart),
-            Vector2(x: chamferRightXStart, y: geometry.yStart + chamferSize),
+            Vector2(x: xEnd, y: yStart + chamferSize),
+            Vector2(x: chamferRightXStart, y: yStart),
+            Vector2(x: chamferRightXStart, y: yStart + chamferSize),
             style.fill
         )
 
         // border
+        DrawRectangleV(
+            Vector2(x: xStart, y: yStart + chamferSize),
+            Vector2(x: lineThickness, y: sideHeight),
+            style.borderColor
+        )
+        DrawRectangleV(
+            Vector2(x: xEnd - lineThickness, y: yStart + chamferSize),
+            Vector2(x: lineThickness, y: sideHeight),
+            style.borderColor
+        )
+        DrawRectangleV(
+            Vector2(x: chamferLeftXEnd, y: yStart),
+            Vector2(x: chamferRightXStart - chamferLeftXEnd, y: lineThickness),
+            style.borderColor
+        )
+
+        // chamfers
         DrawLineEx(
-            Vector2(x: geometry.xStart + lineThickness, y: geometry.yStart + chamferSize), 
-            Vector2(x: geometry.xStart + lineThickness, y: geometry.yEnd), 
-            lineThickness, 
+            Vector2(x: xStart + lineThickness / 2, y: yStart + chamferSize),
+            Vector2(x: chamferLeftXEnd, y: yStart + lineThickness / 2),
+            lineThickness,
             style.borderColor
         )
         DrawLineEx(
-            Vector2(x: chamferLeftXStart, y: geometry.yStart + chamferSize), 
-            Vector2(x: chamferLeftXEnd, y: geometry.yStart), 
-            lineThickness, 
-            style.borderColor
-        )
-        DrawLineEx(
-            Vector2(x: geometry.xStart + chamferSize, y: geometry.yStart), 
-            Vector2(x: chamferRightXStart, y: geometry.yStart), 
-            lineThickness, 
-            style.borderColor
-        )
-        DrawLineEx(
-            Vector2(x: chamferRightXStart, y: geometry.yStart), 
-            Vector2(x: chamferRightXEnd, y: geometry.yStart + chamferSize), 
-            lineThickness, 
-            style.borderColor
-        )
-        DrawLineEx(
-            Vector2(x: geometry.xEnd - lineThickness, y: geometry.yStart + chamferSize), 
-            Vector2(x: geometry.xEnd - lineThickness, y: geometry.yEnd), 
-            lineThickness, 
+            Vector2(x: chamferRightXStart, y: yStart + lineThickness / 2),
+            Vector2(x: xEnd - lineThickness / 2, y: yStart + chamferSize),
+            lineThickness,
             style.borderColor
         )
 
