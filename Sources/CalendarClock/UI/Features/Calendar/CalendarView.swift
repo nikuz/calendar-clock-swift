@@ -3,6 +3,82 @@ import CRayLib
 
 @MainActor
 enum CalendarView {
+    private enum CalendarStateKey: Equatable {
+        case loading
+        case loaded(Double) // load time
+        case failed
+    }
+
+    /// Everything the scene is drawn from. While it stays the same, and nothing
+    /// on the screen is animated, the previously rendered frame is still valid.
+    private struct RenderState: Equatable {
+        let calendar: CalendarStateKey
+        let totalMinutes: Int
+        let isNightTime: Bool
+        let dayBrightness: Float
+        let nightBrightness: Float
+        let backgroundVisible: Bool
+        let activeEventId: String?
+        let flashingEventId: String?
+        let confirmedApproachingEventId: String?
+        let flashPhase: Int
+        let navigationEventIndex: Int?
+        let navigationShift: Float
+        let selectedEventIndex: Int?
+
+        /// The scene draws an animation, every frame of it is different
+        var isAnimated: Bool {
+            if isNightTime {
+                return false
+            }
+
+            switch calendar {
+                case .loading:
+                    // animated loading indicator
+                    return true
+                case .loaded:
+                    // the alarm wave effect is animated until the event is confirmed
+                    return activeEventId != nil && activeEventId != confirmedApproachingEventId
+                case .failed:
+                    return false
+            }
+        }
+
+        init(
+            time: CalendarUIUtils.TimeInfo,
+            isNightTime: Bool,
+            appState: AppStateData,
+            eventsOrder: CalendarUIUtils.EventsOrder,
+            eventsNavigation: CalendarUIUtils.EventsNavigation?,
+            selectedEventIndex: Int?,
+        ) {
+            let confirmedApproachingEventId = appState.calendar.confirmedApproachingEventId
+            let flashingEventId = (eventsOrder.approachingEvent ?? eventsOrder.activeEvent)?.event.id
+
+            switch appState.calendar {
+                case .loading: calendar = .loading
+                case .loaded(let payload): calendar = .loaded(payload.loadTime)
+                case .failed: calendar = .failed
+            }
+
+            self.isNightTime = isNightTime
+            self.confirmedApproachingEventId = confirmedApproachingEventId
+            self.flashingEventId = flashingEventId
+            self.selectedEventIndex = selectedEventIndex
+            totalMinutes = time.totalMinutes
+            dayBrightness = appState.brightness.dayFactor
+            nightBrightness = appState.brightness.nightFactor
+            backgroundVisible = appState.backgroundVisible
+            activeEventId = eventsOrder.activeEvent?.event.id
+            navigationEventIndex = eventsNavigation?.eventIndex
+            navigationShift = eventsNavigation?.shift ?? 0
+            // the flashing event card only changes twice per second
+            flashPhase = flashingEventId != nil && flashingEventId != confirmedApproachingEventId
+                ? time.second % 2
+                : -1
+        }
+    }
+
     // static private let animationDuration = 1.0 // seconds
     // static private var animationStartTime = GetTime()
     // static private var animationDirection: Float = 1
@@ -10,12 +86,88 @@ enum CalendarView {
     static private var eventsCardsLoadTime: Double = 0
     static private var eventsNavigation: CalendarUIUtils.EventsNavigation?
     static private var selectedEventIndex: Int?
+    static private var eventsOrder: CalendarUIUtils.EventsOrder = (nil, nil, nil, nil)
+    static private var eventsOrderMinutes: Int = -1
+    static private var eventsOrderLoadTime: Double = -1
+    static private var lastRenderState: RenderState?
 
-    static func draw(appState: AppState) {
-        let _appState = appState.current
+    static func render(appState: AppState) {
+        let frameStartTime = GetTime()
         let time = CalendarUIUtils.getTime()
         let isNightTime = CalendarUIUtils.isNightTime(time)
 
+        var _appState = appState.current
+
+        // keyboard shortcuts and the alarm sound are handled on every frame,
+        // even when the scene doesn't have to be re-rendered
+        if !isNightTime, case .loaded(let payload) = _appState.calendar {
+            updateEventsOrder(payload: payload, time: time)
+            handleKeyboardShortcuts(appState: appState, events: payload.events, time: time)
+            // shortcuts can change the state, the scene has to be drawn from the new one
+            _appState = appState.current
+            CalendarActiveEventAlarm.play(appState: _appState, eventsOrder: eventsOrder)
+        } else {
+            resetEventsOrder()
+        }
+
+        let renderState = RenderState(
+            time: time,
+            isNightTime: isNightTime,
+            appState: _appState,
+            eventsOrder: eventsOrder,
+            eventsNavigation: eventsNavigation,
+            selectedEventIndex: selectedEventIndex,
+        )
+
+        // the previous frame is still on the screen and it's still valid
+        guard renderState != lastRenderState || renderState.isAnimated else {
+            skipFrame(frameStartTime: frameStartTime)
+            return
+        }
+        lastRenderState = renderState
+
+        BeginDrawing()
+        ClearBackground(.black)
+        draw(appState: _appState, time: time, isNightTime: isNightTime)
+        EndDrawing()
+    }
+
+    /// `EndDrawing` swaps the buffers, polls the input and keeps the frame rate.
+    /// Nothing is drawn, so only the input and the frame rate have to be kept,
+    /// the front buffer is left untouched with the last rendered frame on it.
+    static private func skipFrame(frameStartTime: Double) {
+        PollInputEvents()
+
+        let targetFrameTime = 1.0 / Double(UI_FPS)
+        let frameTime = GetTime() - frameStartTime
+
+        if frameTime < targetFrameTime {
+            WaitTime(targetFrameTime - frameTime)
+        }
+    }
+
+    /// Events order only changes when the minute changes or the events are reloaded
+    static private func updateEventsOrder(payload: CalendarPayload, time: CalendarUIUtils.TimeInfo) {
+        guard eventsOrderMinutes != time.totalMinutes || eventsOrderLoadTime != payload.loadTime else {
+            return
+        }
+
+        eventsOrderMinutes = time.totalMinutes
+        eventsOrderLoadTime = payload.loadTime
+        eventsOrder = CalendarUIUtils.getEventsOrder(events: payload.events, time: time)
+    }
+
+    static private func resetEventsOrder() {
+        eventsOrder = (nil, nil, nil, nil)
+        eventsOrderMinutes = -1
+        eventsOrderLoadTime = -1
+    }
+
+    static private func draw(
+        appState _appState: AppStateData,
+        time: CalendarUIUtils.TimeInfo,
+        isNightTime: Bool,
+    ) {
         if isNightTime {
             CalendarTimeComponent.draw(time: time, appState: _appState)
             return
@@ -27,15 +179,6 @@ enum CalendarView {
                 CalendarTimeComponent.draw(time: time, appState: _appState)
 
             case .loaded(let payload):
-                let eventsOrder = CalendarUIUtils.getEventsOrder(events: payload.events, time: time)
-
-                self.handleKeyboardShortcuts(
-                    appState: appState,
-                    events: payload.events,
-                    eventsOrder: eventsOrder,
-                    time: time,
-                )
-
                 CalendarBackground.draw(time: time, appState: _appState)
                 CalendarActiveEventAlarmEffect.draw(
                     time: time,
@@ -52,7 +195,6 @@ enum CalendarView {
                         eventsNavigation: eventsNavigation,
                     )
                 }
-                CalendarActiveEventAlarm.play(appState: _appState, eventsOrder: eventsOrder)
 
                 // events cards are created only when the list of events changes,
                 // after that only their dynamic properties are updated
@@ -130,10 +272,9 @@ enum CalendarView {
         // }
     }
 
-    static func handleKeyboardShortcuts(
+    static private func handleKeyboardShortcuts(
         appState: AppState,
         events: [CalendarEvent],
-        eventsOrder: CalendarUIUtils.EventsOrder,
         time: CalendarUIUtils.TimeInfo,
     ) {
         if KEY_ESCAPE.isPressed {

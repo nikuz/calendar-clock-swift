@@ -44,13 +44,10 @@ struct Renderer {
             CloseWindow()
         }
 
+        // the view decides on its own whether the frame has to be rendered,
+        // the scene is mostly static and doesn't change between the frames
         while !WindowShouldClose() {
-            BeginDrawing()
-            ClearBackground(.black)
-
-            CalendarView.draw(appState: appState)
-
-            EndDrawing()
+            CalendarView.render(appState: appState)
         }
     }
 }
