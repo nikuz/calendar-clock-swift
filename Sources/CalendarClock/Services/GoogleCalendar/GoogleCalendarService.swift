@@ -2,13 +2,18 @@ import Foundation
 import CRayLib
 
 actor GoogleCalendarService {
+    private let hiddenEventsStore: HiddenEventsStore
     private var calendarProvider: GoogleCalendarAPIClient?
     private var ngrokCredentials: NgrokCredentials?
     private var webhookServer: CalendarWebhookServer?
     private var watchChannelsExpirationCheckingTask: Task<Void, Error>?
     private var cachedDate: Date = Date()
     private var watchDateChangeTask: Task<Void, Error>?
-    
+
+    init(hiddenEventsStore: HiddenEventsStore) {
+        self.hiddenEventsStore = hiddenEventsStore
+    }
+
     func start(appState: AppState) async throws {
         let ngrokCredentials = try await NgrokCredentials()
         self.ngrokCredentials = ngrokCredentials
@@ -69,8 +74,13 @@ actor GoogleCalendarService {
 
     private func loadEvents(_ appState: AppState) async throws {
         if let loadedEvents = try await calendarProvider?.fetchEvents() {
+            // the store is asked on every load, so the ids the user hid survive a
+            // restart and a reload, and are dropped on their own when the day changes
+            let hiddenEventIds = hiddenEventsStore.eventIds(on: Calendar.current.startOfDay(for: Date()))
+
             appState.update { state in
-                state.calendar.updatePayload { payload in 
+                state.calendar.updatePayload { payload in
+                    payload.hiddenEventIds = hiddenEventIds
                     payload.events = loadedEvents
                 }
             }

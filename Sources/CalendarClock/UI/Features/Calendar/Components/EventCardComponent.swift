@@ -52,6 +52,11 @@ struct CalendarEventCardComponent {
         let highlightedEventIndex: Int?
         let selectedEventIndex: Int?
 
+        /// The user is walking through the events, hidden events are shown.
+        var isNavigating: Bool {
+            highlightedEventIndex != nil
+        }
+
         init(
             time: CalendarUIUtils.TimeInfo,
             appState: AppStateData,
@@ -74,9 +79,15 @@ struct CalendarEventCardComponent {
         }
     }
 
+    /// Thickness of the line a hidden event is reduced to.
+    private static let hiddenLineHeight: Float = 2.0
+    /// The same line while the event is highlighted, thick enough to be spotted.
+    private static let hiddenHighlightedLineHeight: Float = 6.0
+
     // calculated once, when the event is created
     private let event: CalendarEvent
     private let index: Int
+    private let isHidden: Bool
     private let baseColor: Color
     private let eventTime: EventCardTime
     private var eventPosition: CalendarUIUtils.EventPosition
@@ -98,6 +109,7 @@ struct CalendarEventCardComponent {
     // updated on every frame
     private var isHighlighted = false
     private var isSelected = false
+    private var isNavigating = false
     private var outsideLeftEdgeIndex: Int? = nil
     private var outsideRightEdgeIndex: Int? = nil
 
@@ -119,6 +131,7 @@ struct CalendarEventCardComponent {
 
         self.event = event
         self.index = index
+        self.isHidden = positionedEvent.isHidden
         self.eventPosition = eventPosition
         dayStart = startOfDay
         baseColor = CALENDAR_EVENT_COLORS[index % CALENDAR_EVENT_COLORS.count]
@@ -141,6 +154,11 @@ struct CalendarEventCardComponent {
     /// time labels. None of it changes while the event is on the screen.
     private mutating func layout(boxHeight: Float) {
         let boxWidth = round(eventPosition.width)
+
+        if isHidden {
+            layoutHiddenLine(boxWidth: boxWidth)
+            return
+        }
 
         // is short event
         if boxWidth <= 40.0 {
@@ -191,6 +209,20 @@ struct CalendarEventCardComponent {
         }
 
         updateSummaryLines()
+    }
+
+    /// A hidden event keeps its place on the timeline but is squeezed into a
+    /// line at the very bottom of the screen. It carries no text, so none of the
+    /// font, time or summary layout applies to it.
+    private mutating func layoutHiddenLine(boxWidth: Float) {
+        geometry.boxWidth = boxWidth
+        geometry.boxContentWidth = boxWidth
+        geometry.boxHeight = Self.hiddenLineHeight
+        geometry.yEnd = CONTENT_HEIGHT
+
+        defaultYStart = CONTENT_HEIGHT - Self.hiddenLineHeight
+        highlightedYStart = CONTENT_HEIGHT - Self.hiddenHighlightedLineHeight
+        geometry.yStart = defaultYStart
     }
 
     /// Splits the summary into the lines that fit into the card.
@@ -263,16 +295,22 @@ struct CalendarEventCardComponent {
         let wasSelected = isSelected
         isHighlighted = context.highlightedEventIndex == index
         isSelected = context.selectedEventIndex == index
+        isNavigating = context.isNavigating
 
         updateGeometry(context: context)
 
         // the summary box changed its height, the summary has to be re-wrapped
-        if wasHighlighted != isHighlighted || wasSelected != isSelected {
+        if !isHidden && (wasHighlighted != isHighlighted || wasSelected != isSelected) {
             updateSummaryLines()
         }
 
         updateStyle(context: context)
-        updateOutsideEdges(leftEdgeCounter: &leftEdgeCounter, rightEdgeCounter: &rightEdgeCounter)
+
+        // a hidden event is a line at the bottom of the screen, it doesn't take
+        // one of the slots the off screen events are counted into
+        if !isHidden {
+            updateOutsideEdges(leftEdgeCounter: &leftEdgeCounter, rightEdgeCounter: &rightEdgeCounter)
+        }
     }
 
     private mutating func updateGeometry(context: Context) {
@@ -327,6 +365,14 @@ struct CalendarEventCardComponent {
     }
 
     func draw() {
+        if isHidden {
+            // a hidden event only shows up while the user walks through the events
+            if isNavigating {
+                drawHiddenLine()
+            }
+            return
+        }
+
         if outsideLeftEdgeIndex != nil || outsideRightEdgeIndex != nil {
             drawOutside()
         } else {
@@ -334,6 +380,14 @@ struct CalendarEventCardComponent {
             drawTime()
             drawSummary()
         }
+    }
+
+    private func drawHiddenLine() {
+        DrawRectangleV(
+            Vector2(x: geometry.xStart, y: geometry.yStart),
+            Vector2(x: geometry.boxWidth, y: geometry.yEnd - geometry.yStart),
+            style.borderColor
+        )
     }
 
     private func drawOutside() {

@@ -79,7 +79,7 @@ enum CalendarUIUtils {
     )
 
     static func getEventsOrder(
-        events: [CalendarEvent], 
+        events: [PositionedCalendarEvent],
         time: TimeInfo,
     ) -> EventsOrder {
         let calendar = Calendar.current
@@ -88,7 +88,15 @@ enum CalendarUIUtils {
         var nextEvent: (index: Int, event: CalendarEvent)?
         var approachingEvent: (index: Int, event: CalendarEvent)?
 
-        for (index, event) in events.enumerated() {
+        for (index, positionedEvent) in events.enumerated() {
+            // a hidden event never becomes the active, the approaching, the next
+            // or the previous one: it doesn't flash, ring or move the time line
+            guard !positionedEvent.isHidden else {
+                continue
+            }
+
+            let event = positionedEvent.event
+
             guard let eventStartDate = event.start.date,
                 let eventEndDate = event.end.date,
                 let eventStartDateMinusOneMinute = calendar.date(byAdding: .minute, value: -1, to: eventStartDate)
@@ -127,9 +135,11 @@ enum CalendarUIUtils {
         case left, right
     }
 
+    /// Moves the highlight one event to the left or to the right. Hidden events
+    /// are walked over like any other one, that is the only way back to them.
     static func getEventsNavigation(
         time: TimeInfo,
-        events: [CalendarEvent],
+        events: [PositionedCalendarEvent],
         eventsOrder: EventsOrder,
         eventsNavigation: EventsNavigation?,
         direction: EventsNavigationDirection,
@@ -156,7 +166,7 @@ enum CalendarUIUtils {
             return eventsNavigation
         }
 
-        let event = events[eventIndex]
+        let event = events[eventIndex].event
 
         let eventRectangle = getEventRectangle(
             time: time,

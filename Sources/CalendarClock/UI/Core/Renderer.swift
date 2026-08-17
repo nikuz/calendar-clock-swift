@@ -4,13 +4,15 @@ import CRayLib
 @MainActor
 struct Renderer {
     private let appState: AppState
+    private let hiddenEventsStore: HiddenEventsStore
     private let uiFonts = UIFonts()
     private let uiSounds = UISounds()
     private let uiShaders: UIShaders
     private let uiTextures = UITextures()
 
-    init(appState: AppState) {
+    init(appState: AppState, hiddenEventsStore: HiddenEventsStore) {
         self.appState = appState
+        self.hiddenEventsStore = hiddenEventsStore
         self.uiShaders = UIShaders()
     }
 
@@ -47,7 +49,7 @@ struct Renderer {
         // the view decides on its own whether the frame has to be rendered,
         // the scene is mostly static and doesn't change between the frames
         while !WindowShouldClose() {
-            CalendarView.render(appState: appState)
+            CalendarView.render(appState: appState, hiddenEventsStore: hiddenEventsStore)
         }
     }
 }

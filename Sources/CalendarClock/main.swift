@@ -1,7 +1,8 @@
 import Foundation
 
 private let appState = AppState()
-private let calendarService = GoogleCalendarService()
+private let hiddenEventsStore = HiddenEventsStore()
+private let calendarService = GoogleCalendarService(hiddenEventsStore: hiddenEventsStore)
 
 private let calendarBackgroundTask = Task.detached {
     do {
@@ -31,15 +32,17 @@ sigintSource.setEventHandler {
     Task {
         calendarBackgroundTask.cancel()
         await calendarService.stop()
+        hiddenEventsStore.flush()
         exit(0)
     }
 }
 sigintSource.resume()
 
-private let renderer = Renderer(appState: appState)
+private let renderer = Renderer(appState: appState, hiddenEventsStore: hiddenEventsStore)
 renderer.start()
 
 // normal cleanup
 calendarBackgroundTask.cancel()
 await calendarService.stop()
 brightnessBackgroundTask.cancel()
+hiddenEventsStore.flush()

@@ -5,7 +5,7 @@ import CRayLib
 enum CalendarView {
     private enum CalendarStateKey: Equatable {
         case loading
-        case loaded(Double) // load time
+        case loaded(UInt64) // layout revision
         case failed
     }
 
@@ -57,7 +57,7 @@ enum CalendarView {
 
             switch appState.calendar {
                 case .loading: calendar = .loading
-                case .loaded(let payload): calendar = .loaded(payload.loadTime)
+                case .loaded(let payload): calendar = .loaded(payload.layoutRevision)
                 case .failed: calendar = .failed
             }
 
@@ -83,15 +83,15 @@ enum CalendarView {
     // static private var animationStartTime = GetTime()
     // static private var animationDirection: Float = 1
     static private var eventsCards: [CalendarEventCardComponent?] = []
-    static private var eventsCardsLoadTime: Double = 0
+    static private var eventsCardsRevision: UInt64?
     static private var eventsNavigation: CalendarUIUtils.EventsNavigation?
     static private var selectedEventIndex: Int?
     static private var eventsOrder: CalendarUIUtils.EventsOrder = (nil, nil, nil, nil)
     static private var eventsOrderMinutes: Int = -1
-    static private var eventsOrderLoadTime: Double = -1
+    static private var eventsOrderRevision: UInt64?
     static private var lastRenderState: RenderState?
 
-    static func render(appState: AppState) {
+    static func render(appState: AppState, hiddenEventsStore: HiddenEventsStore) {
         let frameStartTime = GetTime()
         let time = CalendarUIUtils.getTime()
         let isNightTime = CalendarUIUtils.isNightTime(time)
@@ -102,9 +102,18 @@ enum CalendarView {
         // even when the scene doesn't have to be re-rendered
         if !isNightTime, case .loaded(let payload) = _appState.calendar {
             updateEventsOrder(payload: payload, time: time)
-            handleKeyboardShortcuts(appState: appState, events: payload.events, time: time)
+            handleKeyboardShortcuts(
+                appState: appState,
+                hiddenEventsStore: hiddenEventsStore,
+                payload: payload,
+                time: time,
+            )
             // shortcuts can change the state, the scene has to be drawn from the new one
             _appState = appState.current
+            // hiding an event takes it out of the order, the alarm must not ring for it
+            if case .loaded(let updatedPayload) = _appState.calendar {
+                updateEventsOrder(payload: updatedPayload, time: time)
+            }
             CalendarActiveEventAlarm.play(appState: _appState, eventsOrder: eventsOrder)
         } else {
             resetEventsOrder()
@@ -146,21 +155,21 @@ enum CalendarView {
         }
     }
 
-    /// Events order only changes when the minute changes or the events are reloaded
+    /// Events order only changes when the minute changes or the events are laid out again
     static private func updateEventsOrder(payload: CalendarPayload, time: CalendarUIUtils.TimeInfo) {
-        guard eventsOrderMinutes != time.totalMinutes || eventsOrderLoadTime != payload.loadTime else {
+        guard eventsOrderMinutes != time.totalMinutes || eventsOrderRevision != payload.layoutRevision else {
             return
         }
 
         eventsOrderMinutes = time.totalMinutes
-        eventsOrderLoadTime = payload.loadTime
-        eventsOrder = CalendarUIUtils.getEventsOrder(events: payload.events, time: time)
+        eventsOrderRevision = payload.layoutRevision
+        eventsOrder = CalendarUIUtils.getEventsOrder(events: payload.positionedEvents, time: time)
     }
 
     static private func resetEventsOrder() {
         eventsOrder = (nil, nil, nil, nil)
         eventsOrderMinutes = -1
-        eventsOrderLoadTime = -1
+        eventsOrderRevision = nil
     }
 
     static private func draw(
@@ -198,8 +207,8 @@ enum CalendarView {
 
                 // events cards are created only when the list of events changes,
                 // after that only their dynamic properties are updated
-                if eventsCardsLoadTime != payload.loadTime {
-                    eventsCardsLoadTime = payload.loadTime
+                if eventsCardsRevision != payload.layoutRevision {
+                    eventsCardsRevision = payload.layoutRevision
                     eventsCards = payload.positionedEvents.enumerated().map { index, event in
                         CalendarEventCardComponent(
                             positionedEvent: event,
@@ -274,9 +283,12 @@ enum CalendarView {
 
     static private func handleKeyboardShortcuts(
         appState: AppState,
-        events: [CalendarEvent],
+        hiddenEventsStore: HiddenEventsStore,
+        payload: CalendarPayload,
         time: CalendarUIUtils.TimeInfo,
     ) {
+        let events = payload.positionedEvents
+
         if KEY_ESCAPE.isPressed {
             if eventsNavigation != nil {
                 eventsNavigation = nil
@@ -306,8 +318,59 @@ enum CalendarView {
                 selectedEventIndex = nil
             }
         }
-        if let eventsNavigation, KEY_ENTER.isPressed {
-            selectedEventIndex = eventsNavigation.eventIndex
+        // the remaining shortcuts act on the event the navigation highlights
+        guard let eventsNavigation,
+            events.indices.contains(eventsNavigation.eventIndex)
+        else {
+            return
+        }
+
+        let highlightedEvent = events[eventsNavigation.eventIndex]
+
+        if KEY_ENTER.isPressed {
+            // a hidden event is brought back instead of being opened
+            if highlightedEvent.isHidden {
+                setEventHidden(
+                    false,
+                    eventId: highlightedEvent.event.id,
+                    appState: appState,
+                    hiddenEventsStore: hiddenEventsStore,
+                    time: time,
+                )
+            } else {
+                selectedEventIndex = eventsNavigation.eventIndex
+            }
+        }
+
+        if !highlightedEvent.isHidden && (KEY_DELETE.isPressed || KEY_BACKSPACE.isPressed) {
+            setEventHidden(
+                true,
+                eventId: highlightedEvent.event.id,
+                appState: appState,
+                hiddenEventsStore: hiddenEventsStore,
+                time: time,
+            )
+            // the card the selection was opened for is gone
+            selectedEventIndex = nil
+        }
+    }
+
+    /// Hides or shows an event for the rest of the day. The store owns the ids,
+    /// they are written to the disk and mirrored into the app state, so a reload
+    /// of the events can never bring a hidden one back.
+    static private func setEventHidden(
+        _ isHidden: Bool,
+        eventId: String,
+        appState: AppState,
+        hiddenEventsStore: HiddenEventsStore,
+        time: CalendarUIUtils.TimeInfo,
+    ) {
+        let hiddenEventIds = hiddenEventsStore.setHidden(isHidden, eventId: eventId, on: time.startOfDay)
+
+        appState.update { state in
+            state.calendar.updatePayload { payload in
+                payload.hiddenEventIds = hiddenEventIds
+            }
         }
     }
 }
