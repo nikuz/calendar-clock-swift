@@ -6,6 +6,8 @@ enum CalendarView {
     // static private let animationDuration = 1.0 // seconds
     // static private var animationStartTime = GetTime()
     // static private var animationDirection: Float = 1
+    static private var eventsCards: [CalendarEventCardComponent?] = []
+    static private var eventsCardsLoadTime: Double = 0
     static private var eventsNavigation: CalendarUIUtils.EventsNavigation?
     static private var selectedEventIndex: Int?
 
@@ -26,25 +28,25 @@ enum CalendarView {
 
             case .loaded(let payload):
                 let eventsOrder = CalendarUIUtils.getEventsOrder(events: payload.events, time: time)
-                
+
                 self.handleKeyboardShortcuts(
                     appState: appState,
                     events: payload.events,
                     eventsOrder: eventsOrder,
                     time: time,
                 )
-                
+
                 CalendarBackground.draw(time: time, appState: _appState)
                 CalendarActiveEventAlarmEffect.draw(
-                    time: time, 
-                    appState: _appState, 
+                    time: time,
+                    appState: _appState,
                     eventsOrder: eventsOrder,
                     eventsNavigation: eventsNavigation,
                 )
                 // draw time line behind the active event
                 if eventsOrder.activeEvent != nil {
                     CalendarTimeComponent.draw(
-                        time: time, 
+                        time: time,
                         appState: _appState,
                         eventsOrder: eventsOrder,
                         eventsNavigation: eventsNavigation,
@@ -52,66 +54,61 @@ enum CalendarView {
                 }
                 CalendarActiveEventAlarm.play(appState: _appState, eventsOrder: eventsOrder)
 
+                // events cards are created only when the list of events changes,
+                // after that only their dynamic properties are updated
+                if eventsCardsLoadTime != payload.loadTime {
+                    eventsCardsLoadTime = payload.loadTime
+                    eventsCards = payload.positionedEvents.enumerated().map { index, event in
+                        CalendarEventCardComponent(
+                            positionedEvent: event,
+                            index: index,
+                            startOfDay: time.startOfDay,
+                        )
+                    }
+                }
+
+                let eventsCardsContext = CalendarEventCardComponent.Context(
+                    time: time,
+                    appState: _appState,
+                    eventsOrder: eventsOrder,
+                    eventsNavigation: eventsNavigation,
+                    selectedEventIndex: selectedEventIndex,
+                )
+                let highlightedEventIndex = eventsNavigation?.eventIndex
                 var outsideLeftEdgeIndex: Int = 0
                 var outsideRightEdgeIndex: Int = 0
-                
-                for (index, event) in payload.positionedEvents.enumerated() {
-                    CalendarEventCardComponent(
-                        positionedEvent: event,
-                        index: index,
-                        time: time,
-                        appState: _appState,
-                        eventsOrder: eventsOrder,
-                        eventsNavigation: eventsNavigation,
-                        outsideLeftEdgeIndex: &outsideLeftEdgeIndex,
-                        outsideRightEdgeIndex: &outsideRightEdgeIndex,
-                    )?.draw()
+
+                for index in eventsCards.indices {
+                    eventsCards[index]?.update(
+                        context: eventsCardsContext,
+                        leftEdgeCounter: &outsideLeftEdgeIndex,
+                        rightEdgeCounter: &outsideRightEdgeIndex,
+                    )
+                    // the highlighted event is drawn on top of the time line
+                    if index != highlightedEventIndex {
+                        eventsCards[index]?.draw()
+                    }
                 }
 
                 // draw time above event border if time is outside active event boundaries
                 if eventsOrder.activeEvent == nil {
                     CalendarTimeComponent.draw(
-                        time: time, 
+                        time: time,
                         appState: _appState,
                         eventsOrder: eventsOrder,
                         eventsNavigation: eventsNavigation,
                     )
                 }
-                
-                if let eventsNavigation {
-                    if let selectedEventIndex, eventsNavigation.eventIndex == selectedEventIndex {
-                        // selected event
-                        CalendarEventCardComponent(
-                            positionedEvent: payload.positionedEvents[selectedEventIndex],
-                            index: selectedEventIndex,
-                            time: time,
-                            appState: _appState,
-                            eventsOrder: eventsOrder,
-                            eventsNavigation: eventsNavigation,
-                            outsideLeftEdgeIndex: &outsideLeftEdgeIndex,
-                            outsideRightEdgeIndex: &outsideRightEdgeIndex,
-                            isSelected: true,
-                        )?.draw()
-                    } else {
-                        // highlighted event
-                        CalendarEventCardComponent(
-                            positionedEvent: payload.positionedEvents[eventsNavigation.eventIndex],
-                            index: eventsNavigation.eventIndex,
-                            time: time,
-                            appState: _appState,
-                            eventsOrder: eventsOrder,
-                            eventsNavigation: eventsNavigation,
-                            outsideLeftEdgeIndex: &outsideLeftEdgeIndex,
-                            outsideRightEdgeIndex: &outsideRightEdgeIndex,
-                            isHighlighted: true,
-                        )?.draw()
-                    }
+
+                // selected or highlighted event
+                if let highlightedEventIndex, eventsCards.indices.contains(highlightedEventIndex) {
+                    eventsCards[highlightedEventIndex]?.draw()
                 }
 
             case .failed(let error):
                 CalendarErrorComponent.draw(
-                    error: error, 
-                    time: time, 
+                    error: error,
+                    time: time,
                     appState: _appState
                 )
                 CalendarTimeComponent.draw(time: time, appState: _appState)
@@ -158,7 +155,7 @@ enum CalendarView {
         }
         if KEY_LEFT.isPressed || KEY_RIGHT.isPressed {
             eventsNavigation = CalendarUIUtils.getEventsNavigation(
-                time: time, 
+                time: time,
                 events: events,
                 eventsOrder: eventsOrder,
                 eventsNavigation: eventsNavigation,

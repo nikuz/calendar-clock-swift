@@ -4,9 +4,14 @@ import CRayLib
 enum CalendarUIUtils {
     struct TimeInfo {
         let now: Date
+        let startOfDay: Date
         let hour: Int
         let minute: Int
         let second: Int
+
+        var totalMinutes: Int {
+            hour * 60 + minute
+        }
     }
 
     static func getTime() -> TimeInfo {
@@ -22,6 +27,7 @@ enum CalendarUIUtils {
 
         let calendar = Calendar.current
         var now = Date()
+        let startOfToday = calendar.startOfDay(for: now)
 
         if Bool(followingMouse) {
             let minuteUnderMouseCursor = Utilities.remapValue(
@@ -31,7 +37,6 @@ enum CalendarUIUtils {
                 outMin: 0,
                 outMax: 24 * 60 - 1,
             )
-            let startOfToday = calendar.startOfDay(for: Date())
             let currentSeconds = calendar.component(.second, from: now)
             let timeWithMinutes = Calendar.current.date(
                 byAdding: .minute, 
@@ -47,6 +52,7 @@ enum CalendarUIUtils {
 
         return TimeInfo(
             now: now,
+            startOfDay: startOfToday,
             hour: calendar.component(.hour, from: now),
             minute: calendar.component(.minute, from: now),
             second: calendar.component(.second, from: now),
@@ -190,29 +196,26 @@ enum CalendarUIUtils {
         )
     }
 
-    static func getEventRectangle(
-        time: TimeInfo, 
-        event: CalendarEvent,
-        eventsNavigation: EventsNavigation? = nil,
-    ) -> Rectangle {
+    /// Position of an event on the day timeline, in pixels, before the current
+    /// time and the navigation shift are applied. Only depends on the event
+    /// dates, so it can be calculated once instead of on every frame.
+    struct EventPosition {
+        let start: Float
+        let end: Float
+
+        var width: Float {
+            end - start
+        }
+    }
+
+    static func getEventPosition(event: CalendarEvent, startOfDay: Date) -> EventPosition? {
         guard let eventStartDate = event.start.date,
             let eventEndDate = event.end.date
         else {
-            return Rectangle()
+            return nil
         }
 
-        let calendar = Calendar.current
-        let timeMargin = Utilities.remapValue(
-            value: Float(time.hour * 60 + time.minute),
-            inMin: DAY_START_TIME,
-            inMax: DAY_END_TIME,
-            outMin: 0,
-            outMax: (SCREEN_WIDTH * EVENTS_ZOOM) / (EVENTS_ZOOM / (EVENTS_ZOOM - 1)),
-        )
-
-        let startOfToday = calendar.startOfDay(for: Date())
-
-        let startTimeSeconds = eventStartDate.timeIntervalSince1970 - startOfToday.timeIntervalSince1970
+        let startTimeSeconds = eventStartDate.timeIntervalSince1970 - startOfDay.timeIntervalSince1970
         let startPosition = Utilities.remapValue(
             value: Float(startTimeSeconds / 60),
             inMin: DAY_START_TIME,
@@ -221,7 +224,7 @@ enum CalendarUIUtils {
             outMax: SCREEN_WIDTH * EVENTS_ZOOM,
         )
 
-        let endTimeSeconds = eventEndDate.timeIntervalSince1970 - startOfToday.timeIntervalSince1970
+        let endTimeSeconds = eventEndDate.timeIntervalSince1970 - startOfDay.timeIntervalSince1970
         let endPosition = Utilities.remapValue(
             value: Float(endTimeSeconds / 60),
             inMin: DAY_START_TIME,
@@ -230,18 +233,35 @@ enum CalendarUIUtils {
             outMax: SCREEN_WIDTH * EVENTS_ZOOM
         )
 
-        var xStart = startPosition - timeMargin
-        var xEnd = endPosition - timeMargin
+        return EventPosition(start: startPosition, end: endPosition)
+    }
 
-        if let eventsNavigation {
-            xStart -= eventsNavigation.shift
-            xEnd -= eventsNavigation.shift
+    /// Horizontal offset of the whole timeline for the given time.
+    static func getTimeMargin(time: TimeInfo) -> Float {
+        return Utilities.remapValue(
+            value: Float(time.totalMinutes),
+            inMin: DAY_START_TIME,
+            inMax: DAY_END_TIME,
+            outMin: 0,
+            outMax: (SCREEN_WIDTH * EVENTS_ZOOM) / (EVENTS_ZOOM / (EVENTS_ZOOM - 1)),
+        )
+    }
+
+    static func getEventRectangle(
+        time: TimeInfo,
+        event: CalendarEvent,
+        eventsNavigation: EventsNavigation? = nil,
+    ) -> Rectangle {
+        guard let position = getEventPosition(event: event, startOfDay: time.startOfDay) else {
+            return Rectangle()
         }
 
+        let xStart = position.start - getTimeMargin(time: time) - (eventsNavigation?.shift ?? 0)
+
         return Rectangle(
-            x: round(xStart), 
-            y: CONTENT_HEIGHT - EVENTS_HEIGHT, 
-            width: round(xEnd - xStart), 
+            x: round(xStart),
+            y: CONTENT_HEIGHT - EVENTS_HEIGHT,
+            width: round(position.width),
             height: EVENTS_HEIGHT
         )
     }
