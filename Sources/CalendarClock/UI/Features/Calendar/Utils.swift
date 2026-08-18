@@ -276,14 +276,35 @@ enum CalendarUIUtils {
     }
 
     /// Horizontal offset of the whole timeline for the given time.
+    ///
+    /// Rounded on purpose, and it has to stay that way: an event sits at
+    /// `round(position.start) - timeMargin`, so a fractional margin would make every
+    /// event cross its own rounding threshold at its own minute and the row would
+    /// break rank instead of scrolling as a single raster.
     static func getTimeMargin(time: TimeInfo) -> Float {
-        return Utilities.remapValue(
+        return round(Utilities.remapValue(
             value: Float(time.totalMinutes),
             inMin: DAY_START_TIME,
             inMax: DAY_END_TIME,
             outMin: 0,
             outMax: (SCREEN_WIDTH * EVENTS_ZOOM) / (EVENTS_ZOOM / (EVENTS_ZOOM - 1)),
-        )
+        ))
+    }
+
+    /// The current moment in the same coordinates the events are laid out in, before
+    /// the timeline offset is applied.
+    ///
+    /// This is the very expression `getEventPosition` uses for a start date, rounded
+    /// the same way, so `getTimePosition - getTimeMargin` puts the time line exactly on
+    /// the left border of an event that starts right now instead of a pixel beside it.
+    static func getTimePosition(time: TimeInfo) -> Float {
+        return round(Utilities.remapValue(
+            value: Float(time.totalMinutes),
+            inMin: DAY_START_TIME,
+            inMax: DAY_END_TIME,
+            outMin: 0,
+            outMax: SCREEN_WIDTH * EVENTS_ZOOM,
+        ))
     }
 
     static func getEventRectangle(
@@ -295,10 +316,14 @@ enum CalendarUIUtils {
             return Rectangle()
         }
 
-        let xStart = position.start - getTimeMargin(time: time) - (eventsNavigation?.shift ?? 0)
+        // rounded before the offsets are subtracted, and both of them are whole
+        // pixels shared by every event, so the whole row moves as one
+        let xStart = round(position.start)
+            - getTimeMargin(time: time)
+            - round(eventsNavigation?.shift ?? 0)
 
         return Rectangle(
-            x: round(xStart),
+            x: xStart,
             y: CONTENT_HEIGHT - EVENTS_HEIGHT,
             width: round(position.width),
             height: EVENTS_HEIGHT

@@ -27,19 +27,17 @@ struct CalendarTimeComponent {
         let timeText = "\(hoursText)\(spacingText)\(minutesText)"
         let timeTextSize = MeasureTextEx(unscii16Font, timeText, fontSize, 0)
         
-        var x = Utilities.remapValue(
-            value: Float(hour * 60 + minute),
-            inMin: DAY_START_TIME,
-            inMax: DAY_END_TIME,
-            outMin: 0,
-            outMax: SCREEN_WIDTH,
-        )
-
         var navigationShift: Float = 0.0
         if let eventsNavigation {
-            navigationShift = eventsNavigation.shift
+            navigationShift = round(eventsNavigation.shift)
         }
-        x = round(x - navigationShift)
+
+        // built out of the same whole pixel values the event cards are built out of,
+        // so the line continues into the left border of an event starting right now
+        // rather than landing a pixel next to it
+        let x = CalendarUIUtils.getTimePosition(time: time)
+            - CalendarUIUtils.getTimeMargin(time: time)
+            - navigationShift
 
         var textX = x - hoursTextSize.x - spacingTextSize.x / 2
         if navigationShift == 0 {
@@ -52,6 +50,7 @@ struct CalendarTimeComponent {
         if navigationShift == 0 {
             lineX = max(lineX, hoursTextSize.x + spacingTextSize.x / 2)
             lineX = min(lineX, SCREEN_WIDTH - minutesTextSize.x - spacingTextSize.x / 2)
+            lineX = round(lineX)
         }
 
         let brightnessFactor = isNightTime ? appState.brightness.nightFactor : appState.brightness.dayFactor
@@ -60,9 +59,12 @@ struct CalendarTimeComponent {
             color = ColorBrightness(CALENDAR_EVENT_COLORS[activeEvent.index], brightnessFactor)
         }
 
-        DrawLineV(
-            Vector2(x: lineX, y: 0), 
-            Vector2(x: lineX, y: CONTENT_HEIGHT), 
+        // a rectangle rather than a line: a 1px GL line on a whole x sits on the seam
+        // between two pixel columns, and this one has to fill exactly the column the
+        // event border continues from
+        DrawRectangleV(
+            Vector2(x: lineX, y: 0),
+            Vector2(x: 1, y: CONTENT_HEIGHT),
             color
         )
         DrawTextEx(unscii16Font, timeText, Vector2(x: textX, y: textY), fontSize, 0, color)

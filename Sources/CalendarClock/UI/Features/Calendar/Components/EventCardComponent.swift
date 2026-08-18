@@ -59,7 +59,7 @@ struct CalendarEventCardComponent {
             self.time = time
             self.selectedEventIndex = selectedEventIndex
             timeMargin = CalendarUIUtils.getTimeMargin(time: time)
-            navigationShift = eventsNavigation?.shift ?? 0
+            navigationShift = round(eventsNavigation?.shift ?? 0)
             brightnessFactor = CalendarUIUtils.isNightTime(time)
                 ? brightness.nightFactor
                 : brightness.dayFactor
@@ -330,7 +330,9 @@ struct CalendarEventCardComponent {
     }
 
     private mutating func updateGeometry(context: Context) {
-        let xStart = round(eventPosition.start - context.timeMargin - context.navigationShift)
+        // the event position is rounded on its own, the two offsets are already whole
+        // pixels and are the same for every card, so all of them shift together
+        let xStart = round(eventPosition.start) - context.timeMargin - context.navigationShift
 
         geometry.xStart = xStart
         geometry.xEnd = xStart + geometry.boxWidth
