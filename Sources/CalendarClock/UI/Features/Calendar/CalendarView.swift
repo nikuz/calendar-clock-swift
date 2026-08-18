@@ -71,7 +71,10 @@ enum CalendarView {
             backgroundVisible = appState.backgroundVisible
             activeEventId = eventsOrder.activeEvent?.event.id
             navigationEventIndex = eventsNavigation?.eventIndex
-            navigationShift = eventsNavigation?.shift ?? 0
+            // rounded the same way the components round it: while the slide covers
+            // less than a pixel between two frames the scene is identical and the
+            // previously rendered frame is still valid
+            navigationShift = round(eventsNavigation?.shift ?? 0)
             // the flashing event card only changes twice per second
             flashPhase = flashingEventId != nil && flashingEventId != confirmedApproachingEventId
                 ? time.second % 2
@@ -119,12 +122,19 @@ enum CalendarView {
             resetEventsOrder()
         }
 
+        // the shift is resolved once per frame, every component of the frame is drawn
+        // from the same value, see `getAnimatedEventsNavigation`
+        let animatedEventsNavigation = CalendarUIUtils.getAnimatedEventsNavigation(
+            eventsNavigation,
+            now: frameStartTime,
+        )
+
         let renderState = RenderState(
             time: time,
             isNightTime: isNightTime,
             appState: _appState,
             eventsOrder: eventsOrder,
-            eventsNavigation: eventsNavigation,
+            eventsNavigation: animatedEventsNavigation,
             selectedEventIndex: selectedEventIndex,
         )
 
@@ -137,7 +147,12 @@ enum CalendarView {
 
         BeginDrawing()
         ClearBackground(.black)
-        draw(appState: _appState, time: time, isNightTime: isNightTime)
+        draw(
+            appState: _appState,
+            time: time,
+            isNightTime: isNightTime,
+            eventsNavigation: animatedEventsNavigation,
+        )
         EndDrawing()
     }
 
@@ -176,6 +191,7 @@ enum CalendarView {
         appState _appState: AppStateData,
         time: CalendarUIUtils.TimeInfo,
         isNightTime: Bool,
+        eventsNavigation: CalendarUIUtils.EventsNavigation?,
     ) {
         if isNightTime {
             CalendarTimeComponent.draw(time: time, appState: _appState)

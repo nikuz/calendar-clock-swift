@@ -127,9 +127,69 @@ enum CalendarUIUtils {
     typealias EventsNavigation = (
         eventIndex: Int, 
         shift: Float,
+        fromShift: Float,
         duration: Double,
         startTime: Double,
     )
+
+    /// How long the timeline takes to slide from one highlighted event to the next one.
+    static let navigationShiftDuration = 0.3
+    /// Starts right away and settles into the new position, so a chain of key presses
+    /// stays responsive instead of feeling weighed down at the beginning of every move.
+    static let navigationShiftEasing: Animation.EasingFunction = .easeOutCubic
+
+    /// The shift the timeline is drawn with at `now`. The navigation stores where the
+    /// shift goes and where it came from, the easing turns the jump into a slide.
+    @MainActor
+    static func getNavigationShift(_ eventsNavigation: EventsNavigation?, now: Double) -> Float {
+        guard let eventsNavigation else {
+            return 0
+        }
+
+        let progress = eventsNavigation.duration > 0
+            ? (now - eventsNavigation.startTime) / eventsNavigation.duration
+            : 1
+
+        if progress <= 0 {
+            return eventsNavigation.fromShift
+        }
+        if progress >= 1 {
+            return eventsNavigation.shift
+        }
+
+        let easedProgress = Animation.animateWith(value: Float(progress), navigationShiftEasing)
+
+        return eventsNavigation.fromShift
+            + (eventsNavigation.shift - eventsNavigation.fromShift) * easedProgress
+    }
+
+    /// The navigation as of `now`, with the shift the frame has to be drawn with in
+    /// place of the one it is heading to.
+    ///
+    /// Resolved once per frame and handed to every component instead of letting each
+    /// of them read the clock on its own: the shift is rounded to a whole pixel, and
+    /// two components reading it a few microseconds apart could land on either side
+    /// of the same rounding threshold and draw the row a pixel out of line.
+    @MainActor
+    static func getAnimatedEventsNavigation(
+        _ eventsNavigation: EventsNavigation?,
+        now: Double,
+    ) -> EventsNavigation? {
+        guard let eventsNavigation else {
+            return nil
+        }
+
+        let shift = getNavigationShift(eventsNavigation, now: now)
+
+        // the animation is already resolved, `fromShift` and `shift` are the same value
+        return (
+            eventsNavigation.eventIndex,
+            shift,
+            shift,
+            eventsNavigation.duration,
+            eventsNavigation.startTime,
+        )
+    }
 
     enum EventsNavigationDirection {
         case left, right
@@ -173,6 +233,7 @@ enum CalendarUIUtils {
 
     /// Moves the highlight one event to the left or to the right. Hidden events
     /// are walked over like any other one, that is the only way back to them.
+    @MainActor
     static func getEventsNavigation(
         time: TimeInfo,
         events: [CalendarDayEvent],
@@ -203,15 +264,22 @@ enum CalendarUIUtils {
         )
 
         let edgePadding: Float = 30.0
-        let duration = 2.0
+        let duration = navigationShiftDuration
         let startTime = GetTime()
+        // where the timeline is heading, the position the next one is measured against,
+        // so a key pressed in the middle of a slide moves on by one event and not by
+        // the distance the slide has left to cover
         let shift = eventsNavigation?.shift ?? 0
+        // where the timeline is drawn right now, the position the next slide starts
+        // from, so an interrupted one is picked up instead of snapping back
+        let fromShift = getNavigationShift(eventsNavigation, now: startTime)
 
         // event is behind the left edge of the screen
         if eventRectangle.x - shift < edgePadding {
             return (
                 eventIndex,
                 eventRectangle.x - edgePadding,
+                fromShift,
                 duration,
                 startTime,
             )
@@ -221,6 +289,7 @@ enum CalendarUIUtils {
             return (
                 eventIndex,
                 (eventRectangle.x + eventRectangle.width) - SCREEN_WIDTH + edgePadding,
+                fromShift,
                 duration,
                 startTime,
             )
@@ -229,7 +298,8 @@ enum CalendarUIUtils {
         // event is already in within visible screen area
         return (
             eventIndex,
-            shift: eventsNavigation?.shift ?? 0,
+            shift,
+            fromShift,
             duration,
             startTime,
         )

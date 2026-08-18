@@ -65,7 +65,7 @@ private func update(
         time: time,
         appState: AppStateData(),
         eventsOrder: (nil, nil, nil, nil),
-        eventsNavigation: highlightedEventIndex.map { ($0, 0, 0, 0) },
+        eventsNavigation: highlightedEventIndex.map { ($0, 0, 0, 0, 0) },
         selectedEventIndex: selectedEventIndex,
     )
     var leftEdgeCounter = 0
