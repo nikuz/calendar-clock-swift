@@ -96,7 +96,7 @@ struct CalendarPayload: Sendable {
 struct PositionedCalendarEvent: Sendable {
     let event: CalendarEvent
     let height: Float
-    /// The user hid the event, it is only drawn as a thin line while navigating.
+    /// The user hid the event, it is drawn as a thin line at the bottom of the screen.
     let isHidden: Bool
 }
 

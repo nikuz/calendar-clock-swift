@@ -135,12 +135,47 @@ enum CalendarUIUtils {
         case left, right
     }
 
+    /// The event the arrows start from when the navigation is not active yet.
+    /// Deliberately built from the whole day instead of `getEventsOrder`, which
+    /// leaves the hidden events out: hiding an event must not change the order
+    /// the navigation walks through them.
+    static func getNavigationStartIndex(
+        events: [PositionedCalendarEvent],
+        time: TimeInfo,
+        direction: EventsNavigationDirection,
+    ) -> Int? {
+        var activeEventIndex: Int?
+        var prevEventIndex: Int?
+        var nextEventIndex: Int?
+
+        for (index, positionedEvent) in events.enumerated() {
+            guard let eventStartDate = positionedEvent.event.start.date,
+                let eventEndDate = positionedEvent.event.end.date
+            else {
+                continue
+            }
+
+            if time.now > eventEndDate {
+                prevEventIndex = index
+            } else if time.now >= eventStartDate {
+                activeEventIndex = index
+            } else if nextEventIndex == nil {
+                nextEventIndex = index
+            }
+        }
+
+        if let activeEventIndex {
+            return activeEventIndex
+        }
+
+        return direction == .left ? prevEventIndex : nextEventIndex
+    }
+
     /// Moves the highlight one event to the left or to the right. Hidden events
     /// are walked over like any other one, that is the only way back to them.
     static func getEventsNavigation(
         time: TimeInfo,
         events: [PositionedCalendarEvent],
-        eventsOrder: EventsOrder,
         eventsNavigation: EventsNavigation?,
         direction: EventsNavigationDirection,
     ) -> EventsNavigation? {
@@ -150,13 +185,7 @@ enum CalendarUIUtils {
             eventIndex = eventsNavigation.eventIndex
             eventIndex! += direction == .left ? -1 : 1
         } else {
-            if let activeEvent = eventsOrder.activeEvent {
-                eventIndex = activeEvent.index
-            } else if let prevEvent = eventsOrder.prevEvent, direction == .left {
-                eventIndex = prevEvent.index
-            } else if let nextEvent = eventsOrder.nextEvent, direction == .right {
-                eventIndex = nextEvent.index
-            }
+            eventIndex = getNavigationStartIndex(events: events, time: time, direction: direction)
         }
 
         guard let eventIndex, 

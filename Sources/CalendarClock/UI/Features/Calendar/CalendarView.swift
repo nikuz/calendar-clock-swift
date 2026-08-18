@@ -310,7 +310,6 @@ enum CalendarView {
             eventsNavigation = CalendarUIUtils.getEventsNavigation(
                 time: time,
                 events: events,
-                eventsOrder: eventsOrder,
                 eventsNavigation: eventsNavigation,
                 direction: KEY_LEFT.isPressed ? .left : .right,
             )

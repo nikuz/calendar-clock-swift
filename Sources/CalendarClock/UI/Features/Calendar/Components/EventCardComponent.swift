@@ -52,11 +52,6 @@ struct CalendarEventCardComponent {
         let highlightedEventIndex: Int?
         let selectedEventIndex: Int?
 
-        /// The user is walking through the events, hidden events are shown.
-        var isNavigating: Bool {
-            highlightedEventIndex != nil
-        }
-
         init(
             time: CalendarUIUtils.TimeInfo,
             appState: AppStateData,
@@ -109,7 +104,6 @@ struct CalendarEventCardComponent {
     // updated on every frame
     private var isHighlighted = false
     private var isSelected = false
-    private var isNavigating = false
     private var outsideLeftEdgeIndex: Int? = nil
     private var outsideRightEdgeIndex: Int? = nil
 
@@ -212,8 +206,9 @@ struct CalendarEventCardComponent {
     }
 
     /// A hidden event keeps its place on the timeline but is squeezed into a
-    /// line at the very bottom of the screen. It carries no text, so none of the
-    /// font, time or summary layout applies to it.
+    /// line at the very bottom of the screen, so it stays a reminder that it is
+    /// there. It carries no text, so none of the font, time or summary layout
+    /// applies to it.
     private mutating func layoutHiddenLine(boxWidth: Float) {
         geometry.boxWidth = boxWidth
         geometry.boxContentWidth = boxWidth
@@ -295,7 +290,6 @@ struct CalendarEventCardComponent {
         let wasSelected = isSelected
         isHighlighted = context.highlightedEventIndex == index
         isSelected = context.selectedEventIndex == index
-        isNavigating = context.isNavigating
 
         updateGeometry(context: context)
 
@@ -366,10 +360,7 @@ struct CalendarEventCardComponent {
 
     func draw() {
         if isHidden {
-            // a hidden event only shows up while the user walks through the events
-            if isNavigating {
-                drawHiddenLine()
-            }
+            drawHiddenLine()
             return
         }
 

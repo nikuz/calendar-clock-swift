@@ -200,3 +200,63 @@ struct HiddenEventsStoreTests {
         #expect(store.eventIds(on: Date()).isEmpty)
     }
 }
+
+struct HiddenEventsNavigationTests {
+    private func makeDay(hiddenEventIds: Set<String>) throws -> CalendarPayload {
+        var payload = CalendarPayload()
+        payload.events = [
+            try makeEvent(id: "a", start: "2026-08-17T10:00:00+00:00", end: "2026-08-17T11:00:00+00:00"),
+            try makeEvent(id: "b", start: "2026-08-17T12:00:00+00:00", end: "2026-08-17T13:00:00+00:00"),
+            try makeEvent(id: "c", start: "2026-08-17T15:00:00+00:00", end: "2026-08-17T16:00:00+00:00"),
+        ]
+        payload.hiddenEventIds = hiddenEventIds
+        return payload
+    }
+
+    /// Going left after the last event of the day has to land on that event even
+    /// when it is hidden, the same way it does when it is visible.
+    @Test func navigationStartsOnTheLastEventOfTheDayEvenWhenItIsHidden() throws {
+        let time = try makeTime("2026-08-17T14:00:00+00:00")
+
+        for hiddenEventIds in [Set<String>(), ["b"]] {
+            let payload = try makeDay(hiddenEventIds: hiddenEventIds)
+            let startIndex = CalendarUIUtils.getNavigationStartIndex(
+                events: payload.positionedEvents,
+                time: time,
+                direction: .left,
+            )
+            #expect(startIndex == 1)
+        }
+    }
+
+    @Test func navigationStartsOnTheNextEventEvenWhenItIsHidden() throws {
+        let time = try makeTime("2026-08-17T14:00:00+00:00")
+
+        for hiddenEventIds in [Set<String>(), ["c"]] {
+            let payload = try makeDay(hiddenEventIds: hiddenEventIds)
+            let startIndex = CalendarUIUtils.getNavigationStartIndex(
+                events: payload.positionedEvents,
+                time: time,
+                direction: .right,
+            )
+            #expect(startIndex == 2)
+        }
+    }
+
+    @Test func navigationStartsOnTheRunningEventEvenWhenItIsHidden() throws {
+        let time = try makeTime("2026-08-17T12:30:00+00:00")
+
+        for hiddenEventIds in [Set<String>(), ["b"]] {
+            let payload = try makeDay(hiddenEventIds: hiddenEventIds)
+
+            for direction in [CalendarUIUtils.EventsNavigationDirection.left, .right] {
+                let startIndex = CalendarUIUtils.getNavigationStartIndex(
+                    events: payload.positionedEvents,
+                    time: time,
+                    direction: direction,
+                )
+                #expect(startIndex == 1)
+            }
+        }
+    }
+}
