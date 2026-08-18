@@ -1,9 +1,6 @@
 import Foundation
 import CRayLib
 
-@MainActor private let unscii8Font = UIFonts.getFont(.unscii8)
-@MainActor private let silkscreen3x7Font = UIFonts.getFont(.silkscreen3x7)
-
 @MainActor
 private struct EventCardTime {
     let startHour: Int
@@ -21,17 +18,15 @@ private struct EventCardGeometry {
     var yEnd: Float = 0.0
     var boxWidth: Float = 0.0
     var boxContentWidth: Float = 0.0
-    var boxHeight: Float = 0.0
 }
 
 @MainActor
 private struct EventCardStyle {
-    var font = unscii8Font
+    var font: UIFont = .unscii8
     var fontSize: Float = 8.0
     var hPadding: Float = 4.0
     var vPadding: Float = 5.0
     var lineHeight: Float = 10.0
-    var timeSpace: Float = 20.0
     var characterWidth: Float = 8.0
     var color: Color = .black
     var borderColor: Color = .black
@@ -82,7 +77,7 @@ struct CalendarEventCardComponent {
     // calculated once, when the event is created
     private let event: CalendarEvent
     private let index: Int
-    private let isHidden: Bool
+    let isHidden: Bool
     private let baseColor: Color
     private let eventTime: EventCardTime
     private var eventPosition: CalendarUIUtils.EventPosition
@@ -90,16 +85,19 @@ struct CalendarEventCardComponent {
     private let summary: String
     private var geometry: EventCardGeometry
     private var style: EventCardStyle
-    private var defaultYStart: Float = 0.0
     private var highlightedYStart: Float = 0.0
     private var startTimeString = ""
     private var endTimeString = ""
     private var endTimeOffset = Vector2()
-    private var timeSpace: Float = 0.0
+    /// How many lines the two time labels take, one or two.
+    private var timeLines = 1
+
+    // calculated by the layout, see `CalendarEventCardsLayout`
+    private(set) var top: Float = 0.0
 
     // calculated when the event is created and when it gets highlighted or selected,
     // those are the only states that change the height of the summary box
-    private var summaryLines: [String] = []
+    private(set) var summaryLines: [String] = []
 
     // updated on every frame
     private var isHighlighted = false
@@ -107,12 +105,29 @@ struct CalendarEventCardComponent {
     private var outsideLeftEdgeIndex: Int? = nil
     private var outsideRightEdgeIndex: Int? = nil
 
+    /// The top of the card is the only part of it that survives being covered by
+    /// the events it overlaps, so it is the part the layout has to keep clear.
+    var timeHeaderHeight: Float {
+        isHidden ? Self.hiddenLineHeight : style.vPadding + style.lineHeight * Float(timeLines)
+    }
+
+    /// Height the card can never go below: the time labels plus the padding
+    /// under them. Anything shorter would draw the time outside of the box.
+    var minimumHeight: Float {
+        isHidden ? Self.hiddenLineHeight : timeHeaderHeight + style.vPadding
+    }
+
+    /// Vertical space the time labels take away from the summary.
+    private var timeSpace: Float {
+        timeHeaderHeight + style.vPadding
+    }
+
     init?(
-        positionedEvent: PositionedCalendarEvent,
+        dayEvent: CalendarDayEvent,
         index: Int,
         startOfDay: Date,
     ) {
-        let event = positionedEvent.event
+        let event = dayEvent.event
 
         guard let eventStartHour = event.start.hour,
             let eventStartMinute = event.start.minute,
@@ -125,7 +140,7 @@ struct CalendarEventCardComponent {
 
         self.event = event
         self.index = index
-        self.isHidden = positionedEvent.isHidden
+        self.isHidden = dayEvent.isHidden
         self.eventPosition = eventPosition
         dayStart = startOfDay
         baseColor = CALENDAR_EVENT_COLORS[index % CALENDAR_EVENT_COLORS.count]
@@ -141,42 +156,36 @@ struct CalendarEventCardComponent {
         style = EventCardStyle()
         geometry = EventCardGeometry()
 
-        layout(boxHeight: positionedEvent.height)
+        measure()
+        // a card is always in a drawable state, the layout may lower it later
+        place(top: CalendarEventCardsLayout.baseTop)
     }
 
-    /// Everything that only depends on the event itself: sizes, fonts and the
-    /// time labels. None of it changes while the event is on the screen.
-    private mutating func layout(boxHeight: Float) {
+    /// Everything that only depends on the event itself: the font, the width of
+    /// the box and the time labels. None of it changes while the event is on the
+    /// screen, and the vertical layout is built on top of it.
+    private mutating func measure() {
         let boxWidth = round(eventPosition.width)
 
-        if isHidden {
-            layoutHiddenLine(boxWidth: boxWidth)
+        geometry.boxWidth = boxWidth
+        geometry.boxContentWidth = boxWidth
+        geometry.yEnd = CONTENT_HEIGHT
+
+        // a hidden event carries no text, none of the font, time or summary
+        // layout applies to it
+        guard !isHidden else {
             return
         }
 
         // is short event
         if boxWidth <= 40.0 {
-            style.font = silkscreen3x7Font
+            style.font = .silkscreen3x7
             style.fontSize = 9.0
             style.characterWidth = 4.0
             style.hPadding = 3.0
         }
 
-        let boxTop = CONTENT_HEIGHT - EVENTS_HEIGHT
-
-        geometry.boxWidth = boxWidth
         geometry.boxContentWidth = boxWidth - style.hPadding * 2.0
-        geometry.boxHeight = boxHeight
-        geometry.yEnd = boxTop + EVENTS_HEIGHT
-
-        highlightedYStart = boxTop - CONTENT_HEIGHT / 100 * 5
-        defaultYStart = boxTop
-        // less than 100%
-        if boxHeight < 100 {
-            let yStartOnePercent = boxTop / 100
-            defaultYStart += yStartOnePercent * (100.0 - boxHeight)
-        }
-        geometry.yStart = defaultYStart
 
         startTimeString = "\(CalendarUIUtils.formatTo12H(eventTime.startHour))"
         if eventTime.startMinute != 0 {
@@ -190,84 +199,97 @@ struct CalendarEventCardComponent {
         let startTimeStringSize = Float(startTimeString.count) * style.characterWidth
         let endTimeStringSize = Float(endTimeString.count) * style.characterWidth
 
-        timeSpace = style.timeSpace
         // both labels don't fit on one line, put the end time below the start time
         if startTimeStringSize + endTimeStringSize + style.characterWidth > geometry.boxContentWidth {
+            timeLines = 2
             endTimeOffset = Vector2(x: style.hPadding, y: style.vPadding + style.lineHeight)
-            timeSpace += style.lineHeight
         } else {
+            timeLines = 1
             endTimeOffset = Vector2(
                 x: style.hPadding + geometry.boxContentWidth - endTimeStringSize,
                 y: style.vPadding,
             )
         }
-
-        updateSummaryLines()
     }
 
-    /// A hidden event keeps its place on the timeline but is squeezed into a
-    /// line at the very bottom of the screen, so it stays a reminder that it is
-    /// there. It carries no text, so none of the font, time or summary layout
-    /// applies to it.
-    private mutating func layoutHiddenLine(boxWidth: Float) {
-        geometry.boxWidth = boxWidth
-        geometry.boxContentWidth = boxWidth
-        geometry.boxHeight = Self.hiddenLineHeight
-        geometry.yEnd = CONTENT_HEIGHT
-
-        defaultYStart = CONTENT_HEIGHT - Self.hiddenLineHeight
-        highlightedYStart = CONTENT_HEIGHT - Self.hiddenHighlightedLineHeight
-        geometry.yStart = defaultYStart
-    }
-
-    /// Splits the summary into the lines that fit into the card.
-    /// Only depends on the size of the summary box, so it survives until the
-    /// card is highlighted or selected.
-    private mutating func updateSummaryLines() {
-        let summaryBoxHeight = geometry.yEnd - geometry.yStart - timeSpace
-        let summaryLength = summary.count
-        var lines: [String] = []
-        var curLine = ""
-        var curLineWidth: Float = 0.0
-        var isFullSummaryFit = false
-
-        for (index, character) in summary.enumerated() {
-            if curLineWidth + style.characterWidth > geometry.boxContentWidth || index == summaryLength - 1 {
-                if index == summaryLength - 1 {
-                    // if adding last character exceeds the content width,
-                    // append current line to the list of lines and,
-                    // add one more line that contains only last character
-                    if curLineWidth + style.characterWidth * 2 > geometry.boxContentWidth {
-                        curLine.trimPrefix(" ")
-                        lines.append(curLine)
-                        if Float(lines.count) * style.lineHeight + style.lineHeight <= summaryBoxHeight {
-                            lines.append("\(character)")
-                        }
-                    } else {
-                        curLine.append(character)
-                        curLine.trimPrefix(" ")
-                        lines.append(curLine)
-                    }
-                    isFullSummaryFit = true
-                } else {
-                    curLine.trimPrefix(" ")
-                    lines.append(curLine)
-                }
-                curLine = ""
-                curLineWidth = 0
-                if Float(lines.count + 1) * style.lineHeight >= summaryBoxHeight {
-                    if !isFullSummaryFit {
-                        let lastLine = lines[lines.count - 1]
-                        lines[lines.count - 1] = lastLine.dropLast(3) + "..."
-                    }
-                    break
-                }
-            }
-            curLine.append(character)
-            curLineWidth += style.characterWidth
+    /// Puts the top of the card at the given distance from the top of the screen.
+    /// The cards are bottom aligned, so the top is what gives the card its height
+    /// and the summary has to be wrapped again for it.
+    ///
+    /// A hidden event keeps its place on the timeline but is squeezed into a line
+    /// at the very bottom of the screen, so it stays a reminder that it is there.
+    /// It ignores the layout and always sits on that line.
+    mutating func place(top: Float) {
+        if isHidden {
+            self.top = CONTENT_HEIGHT - Self.hiddenLineHeight
+            highlightedYStart = CONTENT_HEIGHT - Self.hiddenHighlightedLineHeight
+        } else {
+            self.top = top
+            highlightedYStart = CalendarEventCardsLayout.baseTop - CONTENT_HEIGHT / 100 * 5
         }
 
-        summaryLines = lines
+        geometry.yStart = isHighlighted ? highlightedYStart : self.top
+
+        if !isHidden {
+            updateSummaryLines()
+        }
+    }
+
+    /// Splits the summary into the lines that fit into the card under the time.
+    /// Only depends on the height of the card, so it survives until the card is
+    /// highlighted or selected.
+    private mutating func updateSummaryLines() {
+        let summaryBoxHeight = geometry.yEnd - geometry.yStart - timeSpace
+
+        summaryLines = Self.wrap(
+            summary,
+            charactersPerLine: Int(geometry.boxContentWidth / style.characterWidth),
+            maxLines: Int(summaryBoxHeight / style.lineHeight),
+        )
+    }
+
+    /// Wraps the summary into at most `maxLines` lines of `charactersPerLine`
+    /// characters. What doesn't fit is cut off and the last line ends with an
+    /// ellipsis. A card too short for even one line gets no summary at all,
+    /// otherwise the summary would be drawn over the time labels.
+    private static func wrap(
+        _ summary: String,
+        charactersPerLine: Int,
+        maxLines: Int,
+    ) -> [String] {
+        guard charactersPerLine > 0, maxLines > 0 else {
+            return []
+        }
+
+        var lines: [String] = []
+        var line = ""
+
+        for character in summary {
+            if line.count == charactersPerLine {
+                lines.append(line)
+                line = ""
+            }
+            // a line never starts with the space it was wrapped on
+            if line.isEmpty && character == " " {
+                continue
+            }
+            line.append(character)
+        }
+        if !line.isEmpty {
+            lines.append(line)
+        }
+
+        guard lines.count > maxLines else {
+            return lines
+        }
+
+        lines = Array(lines.prefix(maxLines))
+        let lastLine = lines[maxLines - 1]
+        if lastLine.count > 3 {
+            lines[maxLines - 1] = lastLine.dropLast(3) + "..."
+        }
+
+        return lines
     }
 
     mutating func update(
@@ -312,7 +334,7 @@ struct CalendarEventCardComponent {
 
         geometry.xStart = xStart
         geometry.xEnd = xStart + geometry.boxWidth
-        geometry.yStart = isHighlighted ? highlightedYStart : defaultYStart
+        geometry.yStart = isHighlighted ? highlightedYStart : top
     }
 
     private mutating func updateStyle(context: Context) {
@@ -469,15 +491,17 @@ struct CalendarEventCardComponent {
 
         // debug: content filling
         // DrawRectangleV(
-        //     Vector2(x: geometry.xStart + style.hPadding, y: geometry.yStart + style.timeSpace), 
-        //     Vector2(x: geometry.boxContentWidth, y: geometry.yEnd - geometry.yStart - style.timeSpace),
+        //     Vector2(x: geometry.xStart + style.hPadding, y: geometry.yStart + timeSpace), 
+        //     Vector2(x: geometry.boxContentWidth, y: geometry.yEnd - geometry.yStart - timeSpace),
         //     .rayWhite
         // )
     }
 
     private func drawTime() {
+        let font = UIFonts.getFont(style.font)
+
         DrawTextEx(
-            style.font,
+            font,
             startTimeString,
             Vector2(x: geometry.xStart + style.hPadding, y: geometry.yStart + style.vPadding),
             style.fontSize,
@@ -485,7 +509,7 @@ struct CalendarEventCardComponent {
             style.color
         )
         DrawTextEx(
-            style.font,
+            font,
             endTimeString,
             Vector2(x: geometry.xStart + endTimeOffset.x, y: geometry.yStart + endTimeOffset.y),
             style.fontSize,
@@ -495,11 +519,13 @@ struct CalendarEventCardComponent {
     }
 
     private func drawSummary() {
+        let font = UIFonts.getFont(style.font)
+
         for (index, line) in summaryLines.reversed().enumerated() {
             let lineX = geometry.xStart + style.hPadding
             let lineY = geometry.yEnd - (style.lineHeight * Float(index + 1))
             DrawTextEx(
-                style.font,
+                font,
                 line,
                 Vector2(x: lineX, y: lineY),
                 style.fontSize,

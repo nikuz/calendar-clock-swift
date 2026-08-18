@@ -5,7 +5,7 @@ import CRayLib
 enum CalendarView {
     private enum CalendarStateKey: Equatable {
         case loading
-        case loaded(UInt64) // layout revision
+        case loaded(UInt64) // events revision
         case failed
     }
 
@@ -57,7 +57,7 @@ enum CalendarView {
 
             switch appState.calendar {
                 case .loading: calendar = .loading
-                case .loaded(let payload): calendar = .loaded(payload.layoutRevision)
+                case .loaded(let payload): calendar = .loaded(payload.eventsRevision)
                 case .failed: calendar = .failed
             }
 
@@ -157,13 +157,13 @@ enum CalendarView {
 
     /// Events order only changes when the minute changes or the events are laid out again
     static private func updateEventsOrder(payload: CalendarPayload, time: CalendarUIUtils.TimeInfo) {
-        guard eventsOrderMinutes != time.totalMinutes || eventsOrderRevision != payload.layoutRevision else {
+        guard eventsOrderMinutes != time.totalMinutes || eventsOrderRevision != payload.eventsRevision else {
             return
         }
 
         eventsOrderMinutes = time.totalMinutes
-        eventsOrderRevision = payload.layoutRevision
-        eventsOrder = CalendarUIUtils.getEventsOrder(events: payload.positionedEvents, time: time)
+        eventsOrderRevision = payload.eventsRevision
+        eventsOrder = CalendarUIUtils.getEventsOrder(events: payload.dayEvents, time: time)
     }
 
     static private func resetEventsOrder() {
@@ -205,17 +205,14 @@ enum CalendarView {
                     )
                 }
 
-                // events cards are created only when the list of events changes,
-                // after that only their dynamic properties are updated
-                if eventsCardsRevision != payload.layoutRevision {
-                    eventsCardsRevision = payload.layoutRevision
-                    eventsCards = payload.positionedEvents.enumerated().map { index, event in
-                        CalendarEventCardComponent(
-                            positionedEvent: event,
-                            index: index,
-                            startOfDay: time.startOfDay,
-                        )
-                    }
+                // events cards are created and laid out only when the list of
+                // events changes, after that only their dynamic properties are updated
+                if eventsCardsRevision != payload.eventsRevision {
+                    eventsCardsRevision = payload.eventsRevision
+                    eventsCards = CalendarEventCardsLayout.makeCards(
+                        for: payload.dayEvents,
+                        startOfDay: time.startOfDay,
+                    )
                 }
 
                 let eventsCardsContext = CalendarEventCardComponent.Context(
@@ -287,7 +284,7 @@ enum CalendarView {
         payload: CalendarPayload,
         time: CalendarUIUtils.TimeInfo,
     ) {
-        let events = payload.positionedEvents
+        let events = payload.dayEvents
 
         if KEY_ESCAPE.isPressed {
             if eventsNavigation != nil {

@@ -79,7 +79,7 @@ enum CalendarUIUtils {
     )
 
     static func getEventsOrder(
-        events: [PositionedCalendarEvent],
+        events: [CalendarDayEvent],
         time: TimeInfo,
     ) -> EventsOrder {
         let calendar = Calendar.current
@@ -88,14 +88,14 @@ enum CalendarUIUtils {
         var nextEvent: (index: Int, event: CalendarEvent)?
         var approachingEvent: (index: Int, event: CalendarEvent)?
 
-        for (index, positionedEvent) in events.enumerated() {
+        for (index, dayEvent) in events.enumerated() {
             // a hidden event never becomes the active, the approaching, the next
             // or the previous one: it doesn't flash, ring or move the time line
-            guard !positionedEvent.isHidden else {
+            guard !dayEvent.isHidden else {
                 continue
             }
 
-            let event = positionedEvent.event
+            let event = dayEvent.event
 
             guard let eventStartDate = event.start.date,
                 let eventEndDate = event.end.date,
@@ -140,7 +140,7 @@ enum CalendarUIUtils {
     /// leaves the hidden events out: hiding an event must not change the order
     /// the navigation walks through them.
     static func getNavigationStartIndex(
-        events: [PositionedCalendarEvent],
+        events: [CalendarDayEvent],
         time: TimeInfo,
         direction: EventsNavigationDirection,
     ) -> Int? {
@@ -148,9 +148,9 @@ enum CalendarUIUtils {
         var prevEventIndex: Int?
         var nextEventIndex: Int?
 
-        for (index, positionedEvent) in events.enumerated() {
-            guard let eventStartDate = positionedEvent.event.start.date,
-                let eventEndDate = positionedEvent.event.end.date
+        for (index, dayEvent) in events.enumerated() {
+            guard let eventStartDate = dayEvent.event.start.date,
+                let eventEndDate = dayEvent.event.end.date
             else {
                 continue
             }
@@ -175,7 +175,7 @@ enum CalendarUIUtils {
     /// are walked over like any other one, that is the only way back to them.
     static func getEventsNavigation(
         time: TimeInfo,
-        events: [PositionedCalendarEvent],
+        events: [CalendarDayEvent],
         eventsNavigation: EventsNavigation?,
         direction: EventsNavigationDirection,
     ) -> EventsNavigation? {

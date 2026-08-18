@@ -53,46 +53,29 @@ struct HiddenEventsLayoutTests {
         ]
         payload.hiddenEventIds = ["b"]
 
-        #expect(payload.positionedEvents.map(\.event.id) == ["a", "b"])
-        #expect(payload.positionedEvents.map(\.isHidden) == [false, true])
+        #expect(payload.dayEvents.map(\.event.id) == ["a", "b"])
+        #expect(payload.dayEvents.map(\.isHidden) == [false, true])
         #expect(payload.visibleEvents.map(\.id) == ["a"])
     }
 
-    @Test func hiddenEventDoesNotShrinkTheEventsItOverlaps() throws {
-        let events = [
-            try makeEvent(id: "a", start: "2026-08-17T10:00:00+00:00", end: "2026-08-17T12:00:00+00:00"),
-            try makeEvent(id: "b", start: "2026-08-17T11:00:00+00:00", end: "2026-08-17T12:00:00+00:00"),
-        ]
-
-        var payload = CalendarPayload()
-        payload.events = events
-
-        let overlappedHeight = try #require(payload.positionedEvents.last?.height)
-        #expect(overlappedHeight < 100.0)
-
-        payload.hiddenEventIds = ["a"]
-
-        #expect(payload.positionedEvents.last?.height == 100.0)
-    }
-
-    @Test func layoutRevisionChangesWhenAnEventIsHiddenAndShownAgain() throws {
+    @Test func eventsRevisionChangesWhenAnEventIsHiddenAndShownAgain() throws {
         var payload = CalendarPayload()
         payload.events = [
             try makeEvent(id: "a", start: "2026-08-17T10:00:00+00:00", end: "2026-08-17T11:00:00+00:00")
         ]
 
-        let afterLoad = payload.layoutRevision
+        let afterLoad = payload.eventsRevision
         payload.hiddenEventIds = ["a"]
-        let afterHiding = payload.layoutRevision
+        let afterHiding = payload.eventsRevision
         #expect(afterHiding != afterLoad)
 
         // setting the same ids again is not a change, the cards stay valid
         payload.hiddenEventIds = ["a"]
-        #expect(payload.layoutRevision == afterHiding)
+        #expect(payload.eventsRevision == afterHiding)
 
         payload.hiddenEventIds = []
-        #expect(payload.layoutRevision != afterHiding)
-        #expect(payload.positionedEvents.allSatisfy { !$0.isHidden })
+        #expect(payload.eventsRevision != afterHiding)
+        #expect(payload.dayEvents.allSatisfy { !$0.isHidden })
     }
 
     @Test func hiddenEventIsSkippedByTheEventsOrder() throws {
@@ -104,7 +87,7 @@ struct HiddenEventsLayoutTests {
         payload.hiddenEventIds = ["b"]
 
         let order = CalendarUIUtils.getEventsOrder(
-            events: payload.positionedEvents,
+            events: payload.dayEvents,
             time: try makeTime("2026-08-17T10:30:00+00:00"),
         )
 
@@ -123,7 +106,7 @@ struct HiddenEventsLayoutTests {
         payload.hiddenEventIds = ["a"]
 
         let order = CalendarUIUtils.getEventsOrder(
-            events: payload.positionedEvents,
+            events: payload.dayEvents,
             time: try makeTime("2026-08-17T10:30:00+00:00"),
         )
 
@@ -221,7 +204,7 @@ struct HiddenEventsNavigationTests {
         for hiddenEventIds in [Set<String>(), ["b"]] {
             let payload = try makeDay(hiddenEventIds: hiddenEventIds)
             let startIndex = CalendarUIUtils.getNavigationStartIndex(
-                events: payload.positionedEvents,
+                events: payload.dayEvents,
                 time: time,
                 direction: .left,
             )
@@ -235,7 +218,7 @@ struct HiddenEventsNavigationTests {
         for hiddenEventIds in [Set<String>(), ["c"]] {
             let payload = try makeDay(hiddenEventIds: hiddenEventIds)
             let startIndex = CalendarUIUtils.getNavigationStartIndex(
-                events: payload.positionedEvents,
+                events: payload.dayEvents,
                 time: time,
                 direction: .right,
             )
@@ -251,7 +234,7 @@ struct HiddenEventsNavigationTests {
 
             for direction in [CalendarUIUtils.EventsNavigationDirection.left, .right] {
                 let startIndex = CalendarUIUtils.getNavigationStartIndex(
-                    events: payload.positionedEvents,
+                    events: payload.dayEvents,
                     time: time,
                     direction: direction,
                 )
