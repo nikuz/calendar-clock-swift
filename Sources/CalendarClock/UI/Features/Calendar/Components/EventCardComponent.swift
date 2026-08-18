@@ -73,6 +73,14 @@ struct CalendarEventCardComponent {
     private static let hiddenLineHeight: Float = 2.0
     /// The same line while the event is highlighted, thick enough to be spotted.
     private static let hiddenHighlightedLineHeight: Float = 6.0
+    /// How much wider the card of a selected event gets. It grows to both sides
+    /// from the place the event takes on the timeline.
+    private static let selectedWidthFactor: Float = 2.0
+    /// Gap between the island of a selected event and the bottom of the screen.
+    /// Without it the summary would end on the very edge of the screen.
+    private static let selectedBottomMargin: Float = 8.0
+    /// Gap the island is kept away from the left and the right edge of the screen.
+    private static let selectedSideMargin: Float = 4.0
 
     // calculated once, when the event is created
     private let event: CalendarEvent
@@ -85,6 +93,8 @@ struct CalendarEventCardComponent {
     private let summary: String
     private var geometry: EventCardGeometry
     private var style: EventCardStyle
+    /// Width of the card on the timeline, the width every other one is derived from.
+    private var baseBoxWidth: Float = 0.0
     private var highlightedYStart: Float = 0.0
     private var startTimeString = ""
     private var endTimeString = ""
@@ -117,9 +127,26 @@ struct CalendarEventCardComponent {
         isHidden ? Self.hiddenLineHeight : timeHeaderHeight + style.vPadding
     }
 
+    /// The rectangle the card is drawn in, as the last `update` left it.
+    var frame: Rectangle {
+        Rectangle(
+            x: geometry.xStart,
+            y: geometry.yStart,
+            width: geometry.boxWidth,
+            height: geometry.yEnd - geometry.yStart,
+        )
+    }
+
     /// Vertical space the time labels take away from the summary.
     private var timeSpace: Float {
         timeHeaderHeight + style.vPadding
+    }
+
+    /// Space kept under the summary. A card ends at the bottom of the screen and
+    /// the summary ends with it, only the island of a selected event has a bottom
+    /// border of its own to stay away from.
+    private var summaryBottomPadding: Float {
+        isSelected ? style.vPadding : 0
     }
 
     init?(
@@ -167,6 +194,7 @@ struct CalendarEventCardComponent {
     private mutating func measure() {
         let boxWidth = round(eventPosition.width)
 
+        baseBoxWidth = boxWidth
         geometry.boxWidth = boxWidth
         geometry.boxContentWidth = boxWidth
         geometry.yEnd = CONTENT_HEIGHT
@@ -196,6 +224,13 @@ struct CalendarEventCardComponent {
             endTimeString += ":\(eventTime.endMinute)"
         }
 
+        layOutTime()
+    }
+
+    /// Puts the end time either next to the start time or on the line under it,
+    /// whichever the current width of the box has room for. The box gets wider
+    /// when the event is selected, so this outlives `measure`.
+    private mutating func layOutTime() {
         let startTimeStringSize = Float(startTimeString.count) * style.characterWidth
         let endTimeStringSize = Float(endTimeString.count) * style.characterWidth
 
@@ -228,18 +263,25 @@ struct CalendarEventCardComponent {
             highlightedYStart = CalendarEventCardsLayout.baseTop - CONTENT_HEIGHT / 100 * 5
         }
 
-        geometry.yStart = isHighlighted ? highlightedYStart : self.top
+        updateBounds()
 
         if !isHidden {
             updateSummaryLines()
         }
     }
 
+    /// Top and bottom of the card. Every card ends at the bottom of the screen,
+    /// only the island of a selected event floats above it.
+    private mutating func updateBounds() {
+        geometry.yStart = isHighlighted || isSelected ? highlightedYStart : top
+        geometry.yEnd = isSelected ? CONTENT_HEIGHT - Self.selectedBottomMargin : CONTENT_HEIGHT
+    }
+
     /// Splits the summary into the lines that fit into the card under the time.
     /// Only depends on the height of the card, so it survives until the card is
     /// highlighted or selected.
     private mutating func updateSummaryLines() {
-        let summaryBoxHeight = geometry.yEnd - geometry.yStart - timeSpace
+        let summaryBoxHeight = geometry.yEnd - geometry.yStart - timeSpace - summaryBottomPadding
 
         summaryLines = Self.wrap(
             summary,
@@ -311,12 +353,18 @@ struct CalendarEventCardComponent {
         let wasHighlighted = isHighlighted
         let wasSelected = isSelected
         isHighlighted = context.highlightedEventIndex == index
-        isSelected = context.selectedEventIndex == index
+        // a hidden event is brought back before it can be opened, it is never
+        // the one the island is drawn for
+        isSelected = !isHidden && context.selectedEventIndex == index
 
         updateGeometry(context: context)
 
-        // the summary box changed its height, the summary has to be re-wrapped
         if !isHidden && (wasHighlighted != isHighlighted || wasSelected != isSelected) {
+            // the box of the island is wider, the time labels get more room
+            if wasSelected != isSelected {
+                layOutTime()
+            }
+            // the summary box changed its size, the summary has to be re-wrapped
             updateSummaryLines()
         }
 
@@ -334,9 +382,27 @@ struct CalendarEventCardComponent {
         // pixels and are the same for every card, so all of them shift together
         let xStart = round(eventPosition.start) - context.timeMargin - context.navigationShift
 
-        geometry.xStart = xStart
-        geometry.xEnd = xStart + geometry.boxWidth
-        geometry.yStart = isHighlighted ? highlightedYStart : top
+        if isSelected {
+            // the island grows to both sides from the place the event takes on
+            // the timeline, and is pushed back in when that would take it off
+            // the screen: it carries the whole summary, all of it has to be seen
+            let maximumWidth = SCREEN_WIDTH - Self.selectedSideMargin * 2
+            let width = round(min(baseBoxWidth * Self.selectedWidthFactor, maximumWidth))
+            let centeredXStart = xStart - round((width - baseBoxWidth) / 2)
+            let rightmostXStart = SCREEN_WIDTH - Self.selectedSideMargin - width
+
+            geometry.boxWidth = width
+            geometry.boxContentWidth = width - style.hPadding * 2
+            geometry.xStart = min(max(centeredXStart, Self.selectedSideMargin), rightmostXStart)
+        } else {
+            geometry.boxWidth = baseBoxWidth
+            // a hidden event carries no text, it has no content box
+            geometry.boxContentWidth = isHidden ? baseBoxWidth : baseBoxWidth - style.hPadding * 2
+            geometry.xStart = xStart
+        }
+
+        geometry.xEnd = geometry.xStart + geometry.boxWidth
+        updateBounds()
     }
 
     private mutating func updateStyle(context: Context) {
@@ -431,7 +497,11 @@ struct CalendarEventCardComponent {
         let xEnd = geometry.xEnd
         let yStart = geometry.yStart
         let yEnd = geometry.yEnd
-        let sideHeight = yEnd - yStart - chamferSize
+        // an ordinary card runs into the bottom of the screen, it has no bottom
+        // corners to cut off. The island of a selected event floats above it and
+        // is chamfered on all four corners
+        let bottomChamferSize: Float = isSelected ? chamferSize : 0
+        let sideHeight = yEnd - yStart - chamferSize - bottomChamferSize
 
         let chamferLeftXEnd = xStart + chamferSize
         let chamferRightXStart = xEnd - chamferSize
@@ -491,12 +561,67 @@ struct CalendarEventCardComponent {
             style.borderColor
         )
 
+        if isSelected {
+            drawIslandBottom(chamferSize: bottomChamferSize, lineThickness: lineThickness)
+        }
+
         // debug: content filling
         // DrawRectangleV(
         //     Vector2(x: geometry.xStart + style.hPadding, y: geometry.yStart + timeSpace), 
         //     Vector2(x: geometry.boxContentWidth, y: geometry.yEnd - geometry.yStart - timeSpace),
         //     .rayWhite
         // )
+    }
+
+    /// The bottom of the floating island of a selected event: the mirror image
+    /// of the two chamfered corners the top of every card is drawn with.
+    private func drawIslandBottom(chamferSize: Float, lineThickness: Float) {
+        let xStart = geometry.xStart
+        let xEnd = geometry.xEnd
+        let yEnd = geometry.yEnd
+
+        let chamferLeftXEnd = xStart + chamferSize
+        let chamferRightXStart = xEnd - chamferSize
+
+        // filling
+        DrawRectangleV(
+            Vector2(x: chamferLeftXEnd, y: yEnd - chamferSize),
+            Vector2(x: chamferRightXStart - chamferLeftXEnd, y: chamferSize),
+            style.fill
+        )
+        DrawTriangle(
+            Vector2(x: xStart, y: yEnd - chamferSize),
+            Vector2(x: chamferLeftXEnd, y: yEnd),
+            Vector2(x: chamferLeftXEnd, y: yEnd - chamferSize),
+            style.fill
+        )
+        DrawTriangle(
+            Vector2(x: chamferRightXStart, y: yEnd - chamferSize),
+            Vector2(x: chamferRightXStart, y: yEnd),
+            Vector2(x: xEnd, y: yEnd - chamferSize),
+            style.fill
+        )
+
+        // border
+        DrawRectangleV(
+            Vector2(x: chamferLeftXEnd, y: yEnd - lineThickness),
+            Vector2(x: chamferRightXStart - chamferLeftXEnd, y: lineThickness),
+            style.borderColor
+        )
+
+        // chamfers
+        DrawLineEx(
+            Vector2(x: xStart + lineThickness / 2, y: yEnd - chamferSize),
+            Vector2(x: chamferLeftXEnd, y: yEnd - lineThickness / 2),
+            lineThickness,
+            style.borderColor
+        )
+        DrawLineEx(
+            Vector2(x: chamferRightXStart, y: yEnd - lineThickness / 2),
+            Vector2(x: xEnd - lineThickness / 2, y: yEnd - chamferSize),
+            lineThickness,
+            style.borderColor
+        )
     }
 
     private func drawTime() {
@@ -525,7 +650,7 @@ struct CalendarEventCardComponent {
 
         for (index, line) in summaryLines.reversed().enumerated() {
             let lineX = geometry.xStart + style.hPadding
-            let lineY = geometry.yEnd - (style.lineHeight * Float(index + 1))
+            let lineY = geometry.yEnd - summaryBottomPadding - (style.lineHeight * Float(index + 1))
             DrawTextEx(
                 font,
                 line,
