@@ -100,9 +100,17 @@ struct CalendarEvent: Decodable, Identifiable, Sendable {
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = timeZone
 
+            // `timeZone` is the timezone of the calendar the event belongs to,
+            // which is not necessarily the one the clock renders in. Timed
+            // events are drawn on the local timeline, so their hour/minute are
+            // taken in the local timezone. Date-only events carry no time of
+            // day, they are parsed at UTC midnight and read back the same way.
+            var displayCalendar = Calendar(identifier: .gregorian)
+            displayCalendar.timeZone = decodedDateOnly != nil ? TimeZone(identifier: "UTC")! : .current
+
             if let parsedDate {
-                self.hour = calendar.component(.hour, from: parsedDate)
-                self.minute = calendar.component(.minute, from: parsedDate)
+                self.hour = displayCalendar.component(.hour, from: parsedDate)
+                self.minute = displayCalendar.component(.minute, from: parsedDate)
             } else {
                 self.hour = nil
                 self.minute = nil
