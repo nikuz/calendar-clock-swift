@@ -6,12 +6,15 @@ precision highp float;
 precision mediump float;
 #endif
 
+varying vec2 fragTexCoord;
+
 // The scene, rendered on a fully transparent background: every pixel the clock
 // and the events cover carries an alpha of 1, everything else carries a 0. Or,
 // on the second pass, the result of the first one.
 uniform sampler2D texture0;
-uniform vec2 sourceSize;       // size of the source texture, in pixels
-uniform vec2 stepDirection;    // (1, 0) on the horizontal pass, (0, 1) on the vertical one
+// One texel along the axis of this pass, in texture coordinates: (1/width, 0)
+// on the horizontal pass, (0, 1/height) on the vertical one.
+uniform vec2 texelStep;
 
 // How far the cut out reaches past the pixels it is made for. The bounds of the
 // loop have to be a compile time constant on GLSL ES 1.00, so the radius is
@@ -34,19 +37,16 @@ float falloff(float offsetDistance)
 
 void main()
 {
-    // the target has the size of the source, so the fragment and the texel it
-    // is made of are one and the same
-    vec2 uv = gl_FragCoord.xy / sourceSize;
-    vec2 texelStep = stepDirection / sourceSize;
     float mask = 0.0;
 
     // a dilation of the alpha channel: separable, so the two passes together
     // cost 2 * (2 * RADIUS + 1) samples instead of the square of it
     for (int i = -RADIUS; i <= RADIUS; i++) {
         float offset = float(i);
-        vec2 sampleUV = clamp(uv + texelStep * offset, vec2(0.0), vec2(1.0));
-        float sampled = texture2D(texture0, sampleUV).a;
-        mask = max(mask, sampled * falloff(abs(offset)));
+        // clamped rather than wrapped: past the edge of the scene the dilation
+        // has to carry the edge on, not the far side of the screen
+        vec2 sampleCoord = clamp(fragTexCoord + texelStep * offset, vec2(0.0), vec2(1.0));
+        mask = max(mask, texture2D(texture0, sampleCoord).a * falloff(abs(offset)));
     }
 
     gl_FragColor = vec4(mask, mask, mask, mask);

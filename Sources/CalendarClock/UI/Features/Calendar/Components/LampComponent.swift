@@ -19,13 +19,25 @@ import CRayLib
 @MainActor private let maskTexture = makeLampTexture()
 
 @MainActor private let maskShader = UIShaders.getShader(.lampMask)
-@MainActor private let maskSourceSizeLoc = GetShaderLocation(maskShader, "sourceSize")
-@MainActor private let maskStepDirectionLoc = GetShaderLocation(maskShader, "stepDirection")
+@MainActor private let maskTexelStepLoc = GetShaderLocation(maskShader, "texelStep")
 
 @MainActor private let lampShader = UIShaders.getShader(.lamp)
-@MainActor private let lampScreenSizeLoc = GetShaderLocation(lampShader, "screenSize")
-@MainActor private let lampContentFractionLoc = GetShaderLocation(lampShader, "contentFraction")
 @MainActor private let lampColorLoc = GetShaderLocation(lampShader, "lampColor")
+
+/// A render texture is stored upside down, and raylib turns it back up when the
+/// source rectangle is given a negative height. Every pass below draws one of
+/// them over a target of its own size, so they all share this rectangle: the
+/// coordinates the quad is textured with then run the same way down the screen
+/// as the scene does, and the texel a fragment reads is the pixel it covers.
+@MainActor
+private func uprightSource(_ texture: Texture2D) -> Rectangle {
+    Rectangle(
+        x: 0,
+        y: 0,
+        width: Float(texture.width),
+        height: -Float(texture.height),
+    )
+}
 
 /// Turns the screen into a lamp: a solid field of light with the clock and the
 /// events cut out of it, so the room gets lit without losing the scene.
@@ -227,16 +239,12 @@ struct CalendarLampComponent {
         into target: RenderTexture2D,
         stepDirection: Vector2,
     ) {
-        var sourceSize = Vector2(x: Float(source.width), y: Float(source.height))
-        var stepDirection = stepDirection
-
-        SetShaderValue(maskShader, maskSourceSizeLoc, &sourceSize, Int32(SHADER_UNIFORM_VEC2.rawValue))
-        SetShaderValue(
-            maskShader,
-            maskStepDirectionLoc,
-            &stepDirection,
-            Int32(SHADER_UNIFORM_VEC2.rawValue),
+        var texelStep = Vector2(
+            x: stepDirection.x / Float(source.width),
+            y: stepDirection.y / Float(source.height),
         )
+
+        SetShaderValue(maskShader, maskTexelStepLoc, &texelStep, Int32(SHADER_UNIFORM_VEC2.rawValue))
 
         BeginTextureMode(target)
             ClearBackground(.blank)
@@ -244,10 +252,9 @@ struct CalendarLampComponent {
             // ordinary alpha blending would multiply it by itself on the way
             BeginBlendMode(Int32(BLEND_ALPHA_PREMULTIPLY.rawValue))
             BeginShaderMode(maskShader)
-                // the target has the size of the source, and the shader reads
-                // the fragment position rather than the coordinates of the
-                // quad, so a plain one to one blit is all it needs
-                DrawTexture(source, 0, 0, .white)
+                // the target has the size of the source: one to one, so every
+                // fragment reads the very texel it stands for
+                DrawTextureRec(source, uprightSource(source), Vector2(x: 0, y: 0), .white)
             EndShaderMode()
             EndBlendMode()
         EndTextureMode()
@@ -257,42 +264,39 @@ struct CalendarLampComponent {
     /// Drawn before the scene itself, which goes on top of it.
     static func draw(appState: AppStateData) {
         let lamp = appState.lamp
-        let color = LAMP_COLORS[lamp.colorIndex % LAMP_COLORS.count]
-        let intensity = Float(lamp.brightness) / 100.0
+        // dimmed here rather than in the shader: the strip and the screen under
+        // it are painted by two different means, and both have to arrive at the
+        // very same eight bit color or the seam between them would show
+        let color = ColorBrightness(
+            LAMP_COLORS[lamp.colorIndex % LAMP_COLORS.count],
+            Float(lamp.brightness) / 100.0 - 1.0,
+        )
+
+        // the clock and the events only live in the content strip, the rest of
+        // the screen is a plain field of light with nothing to cut out of it
+        DrawRectangleV(
+            Vector2(x: 0, y: CONTENT_HEIGHT),
+            Vector2(x: SCREEN_WIDTH, y: SCREEN_HEIGHT - CONTENT_HEIGHT),
+            color,
+        )
 
         var lampColor = Vector4(
-            x: Float(color.r) / 255.0 * intensity,
-            y: Float(color.g) / 255.0 * intensity,
-            z: Float(color.b) / 255.0 * intensity,
+            x: Float(color.r) / 255.0,
+            y: Float(color.g) / 255.0,
+            z: Float(color.b) / 255.0,
             w: 1.0,
         )
-        // the shader reads the fragment position, which is in physical pixels:
-        // on a scaled high DPI window that is not the size of the scene
-        var screenSize = Vector2(x: Float(GetRenderWidth()), y: Float(GetRenderHeight()))
-        var contentFraction = CONTENT_HEIGHT / SCREEN_HEIGHT
 
         SetShaderValue(lampShader, lampColorLoc, &lampColor, Int32(SHADER_UNIFORM_VEC4.rawValue))
-        SetShaderValue(lampShader, lampScreenSizeLoc, &screenSize, Int32(SHADER_UNIFORM_VEC2.rawValue))
-        SetShaderValue(
-            lampShader,
-            lampContentFractionLoc,
-            &contentFraction,
-            Int32(SHADER_UNIFORM_FLOAT.rawValue),
-        )
 
         BeginShaderMode(lampShader)
-            DrawTexturePro(
+            // the mask covers the strip one to one, so the quad carries the
+            // coordinates of it and the shader has no mapping left to get wrong
+            DrawTextureRec(
                 maskTexture.texture,
-                Rectangle(
-                    x: 0,
-                    y: 0,
-                    width: Float(maskTexture.texture.width),
-                    height: Float(maskTexture.texture.height),
-                ),
-                Rectangle(x: 0, y: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT),
+                uprightSource(maskTexture.texture),
                 Vector2(x: 0, y: 0),
-                0,
-                .white
+                .white,
             )
         EndShaderMode()
     }
