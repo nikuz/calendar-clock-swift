@@ -10,8 +10,9 @@ enum CalendarView {
     }
 
     /// Everything the scene is drawn from. While it stays the same, and nothing
-    /// on the screen is animated, the previously rendered frame is still valid.
-    private struct RenderState: Equatable {
+    /// on the screen is animated, the scene on the screen is still valid, and so
+    /// is the shape of it the lamp cuts its light out of.
+    private struct SceneState: Equatable {
         let calendar: CalendarStateKey
         let totalMinutes: Int
         let isNightTime: Bool
@@ -25,6 +26,7 @@ enum CalendarView {
         let navigationEventIndex: Int?
         let navigationShift: Float
         let selectedEventIndex: Int?
+        let lampActive: Bool
 
         /// The scene draws an animation, every frame of it is different
         var isAnimated: Bool {
@@ -37,8 +39,11 @@ enum CalendarView {
                     // animated loading indicator
                     return true
                 case .loaded:
-                    // the alarm wave effect is animated until the event is confirmed
-                    return activeEventId != nil && activeEventId != confirmedApproachingEventId
+                    // the alarm wave effect is animated until the event is confirmed,
+                    // and the lamp draws no wave effect at all
+                    return !lampActive
+                        && activeEventId != nil
+                        && activeEventId != confirmedApproachingEventId
                 case .failed:
                     return false
             }
@@ -69,6 +74,7 @@ enum CalendarView {
             dayBrightness = appState.brightness.dayFactor
             nightBrightness = appState.brightness.nightFactor
             backgroundVisible = appState.backgroundVisible
+            lampActive = appState.lamp.isActive
             activeEventId = eventsOrder.activeEvent?.event.id
             navigationEventIndex = eventsNavigation?.eventIndex
             // rounded the same way the components round it: while the slide covers
@@ -79,6 +85,39 @@ enum CalendarView {
             flashPhase = flashingEventId != nil && flashingEventId != confirmedApproachingEventId
                 ? time.second % 2
                 : -1
+        }
+    }
+
+    /// Everything the frame is drawn from: the scene, and the light the lamp
+    /// fills the screen under it with.
+    ///
+    /// The light is kept apart from the scene on purpose. It is drawn from its
+    /// own two values and changes nothing about the scene, so running the
+    /// brightness through its hundred steps repaints the frame a hundred times
+    /// but leaves the mask of the scene alone, see `renderMask`.
+    private struct RenderState: Equatable {
+        let scene: SceneState
+        let lampBrightness: Int
+        let lampColorIndex: Int
+
+        init(
+            time: CalendarUIUtils.TimeInfo,
+            isNightTime: Bool,
+            appState: AppStateData,
+            eventsOrder: CalendarUIUtils.EventsOrder,
+            eventsNavigation: CalendarUIUtils.EventsNavigation?,
+            selectedEventIndex: Int?,
+        ) {
+            scene = SceneState(
+                time: time,
+                isNightTime: isNightTime,
+                appState: appState,
+                eventsOrder: eventsOrder,
+                eventsNavigation: eventsNavigation,
+                selectedEventIndex: selectedEventIndex,
+            )
+            lampBrightness = appState.lamp.brightness
+            lampColorIndex = appState.lamp.colorIndex
         }
     }
 
@@ -93,6 +132,8 @@ enum CalendarView {
     static private var eventsOrderMinutes: Int = -1
     static private var eventsOrderRevision: UInt64?
     static private var lastRenderState: RenderState?
+    /// The scene the mask of the lamp was last cut from, see `renderMask`.
+    static private var lastMaskedSceneState: SceneState?
 
     static func render(appState: AppState, hiddenEventsStore: HiddenEventsStore) {
         let frameStartTime = GetTime()
@@ -101,22 +142,46 @@ enum CalendarView {
 
         var _appState = appState.current
 
+        // the lamp owns the keyboard while it is on: the arrows run the light
+        // instead of the events, and it answers to `Escape` before anything else
+        let lampKeyboard = CalendarLampComponent.handleKeyboardShortcuts(
+            appState: appState,
+            isNightTime: isNightTime,
+        )
+        _appState = appState.current
+
         // keyboard shortcuts and the alarm sound are handled on every frame,
         // even when the scene doesn't have to be re-rendered
         if !isNightTime, case .loaded(let payload) = _appState.calendar {
             updateEventsOrder(payload: payload, time: time)
-            handleKeyboardShortcuts(
-                appState: appState,
-                hiddenEventsStore: hiddenEventsStore,
-                payload: payload,
-                time: time,
-            )
-            // shortcuts can change the state, the scene has to be drawn from the new one
-            _appState = appState.current
-            // hiding an event takes it out of the order, the alarm must not ring for it
-            if case .loaded(let updatedPayload) = _appState.calendar {
-                updateEventsOrder(payload: updatedPayload, time: time)
+
+            switch lampKeyboard {
+                case .passed:
+                    handleKeyboardShortcuts(
+                        appState: appState,
+                        hiddenEventsStore: hiddenEventsStore,
+                        payload: payload,
+                        time: time,
+                    )
+                    // shortcuts can change the state, the scene has to be drawn from the new one
+                    _appState = appState.current
+                    // hiding an event takes it out of the order, the alarm must not ring for it
+                    if case .loaded(let updatedPayload) = _appState.calendar {
+                        updateEventsOrder(payload: updatedPayload, time: time)
+                    }
+
+                case .turnedOffTheLamp:
+                    // the `Escape` that turns the lamp off answers a ringing alarm
+                    // on the way out: the lamp draws no wave effect, so an alarm
+                    // that starts while it is on can only be heard and not seen,
+                    // and a single key has to be enough to answer it
+                    confirmFlashingEvent(appState: appState)
+                    _appState = appState.current
+
+                case .taken:
+                    break
             }
+
             CalendarActiveEventAlarm.play(appState: _appState, eventsOrder: eventsOrder)
         } else {
             resetEventsOrder()
@@ -139,14 +204,40 @@ enum CalendarView {
         )
 
         // the previous frame is still on the screen and it's still valid
-        guard renderState != lastRenderState || renderState.isAnimated else {
+        guard renderState != lastRenderState || renderState.scene.isAnimated else {
             skipFrame(frameStartTime: frameStartTime)
             return
         }
         lastRenderState = renderState
 
+        if _appState.lamp.isActive {
+            // the light of the lamp is cut out of the scene, so the scene has to
+            // be rendered into a texture before the frame on the screen is opened.
+            // Only the scene gives the cut out its shape: running the brightness
+            // or the color dial repaints the light over a mask that is already
+            // there instead of building the same one again a hundred times over
+            if renderState.scene != lastMaskedSceneState || renderState.scene.isAnimated {
+                lastMaskedSceneState = renderState.scene
+                CalendarLampComponent.renderMask {
+                    draw(
+                        appState: _appState,
+                        time: time,
+                        isNightTime: isNightTime,
+                        eventsNavigation: animatedEventsNavigation,
+                    )
+                }
+            }
+        } else {
+            // the mask goes stale while the lamp is off, it has to be cut again
+            // the next time the lamp comes on
+            lastMaskedSceneState = nil
+        }
+
         BeginDrawing()
         ClearBackground(.black)
+        if _appState.lamp.isActive {
+            CalendarLampComponent.draw(appState: _appState)
+        }
         draw(
             appState: _appState,
             time: time,
@@ -306,12 +397,8 @@ enum CalendarView {
             if eventsNavigation != nil {
                 eventsNavigation = nil
                 selectedEventIndex = nil
-            } else if let flashingEvent = eventsOrder.activeEvent ?? eventsOrder.approachingEvent {
-                appState.update { state in
-                    state.calendar.updatePayload { payload in
-                        payload.confirmedApproachingEventId = flashingEvent.event.id
-                    }
-                }
+            } else {
+                confirmFlashingEvent(appState: appState)
             }
         }
         if KEY_B.isPressed {
@@ -364,6 +451,21 @@ enum CalendarView {
             )
             // the card the selection was opened for is gone
             selectedEventIndex = nil
+        }
+    }
+
+    /// Silences the event the alarm is ringing for, if one is ringing. Reached
+    /// both from `Escape` on the scene and from the `Escape` that turns the lamp
+    /// off, so the one key answers the alarm wherever it is pressed.
+    static private func confirmFlashingEvent(appState: AppState) {
+        guard let flashingEvent = eventsOrder.activeEvent ?? eventsOrder.approachingEvent else {
+            return
+        }
+
+        appState.update { state in
+            state.calendar.updatePayload { payload in
+                payload.confirmedApproachingEventId = flashingEvent.event.id
+            }
         }
     }
 

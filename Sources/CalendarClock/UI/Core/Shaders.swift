@@ -4,6 +4,8 @@ import CRayLib
 enum UIShaderName: String, CaseIterable {
     case waveEffect = "wave-effect"
     case dreamVision = "dream_vision"
+    case lamp = "lamp"
+    case lampMask = "lamp-mask"
 }
 
 private struct UIShadersList {

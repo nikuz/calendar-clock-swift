@@ -9,6 +9,7 @@ struct AppStateData: Sendable {
         var brightness = AppStateBrightness(100.0)
     #endif
     var backgroundVisible = false
+    var lamp = AppStateLamp()
 }
 
 final class AppState: Sendable {

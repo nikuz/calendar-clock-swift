@@ -49,3 +49,24 @@ let CALENDAR_EVENT_COLORS: [Color] = [
     Color(r: 34, g: 139, b: 34, a: 255),  // Forest Green
     Color(r: 128, g: 0, b: 0, a: 255),  // Maroon
 ]
+
+/// The dial of the lamp, see `AppStateLamp`. Warm, low blue light first, the
+/// one the lamp always starts on is 2700K: a dark room is the only room the
+/// lamp is ever turned on in. The colder and the more saturated colors come
+/// after it, they are picked on purpose rather than landed on by accident.
+let LAMP_COLORS: [Color] = [
+    Color(r: 255, g: 169, b: 87,  a: 255),  // 2700K warm white
+    Color(r: 255, g: 147, b: 41,  a: 255),  // 2200K amber
+    Color(r: 255, g: 126, b: 23,  a: 255),  // 1900K candle
+    Color(r: 255, g: 92,  b: 30,  a: 255),  // ember
+    Color(r: 255, g: 48,  b: 28,  a: 255),  // deep red, the kindest to night vision
+    Color(r: 255, g: 110, b: 96,  a: 255),  // rose
+    Color(r: 255, g: 160, b: 122, a: 255),  // peach
+    Color(r: 255, g: 180, b: 107, a: 255),  // 3000K soft white
+    Color(r: 255, g: 209, b: 163, a: 255),  // 4000K neutral white
+    Color(r: 168, g: 197, b: 255, a: 255),  // moonlight
+    Color(r: 92,  g: 214, b: 203, a: 255),  // teal
+    Color(r: 116, g: 214, b: 142, a: 255),  // forest
+    Color(r: 178, g: 150, b: 255, a: 255),  // lavender
+    Color(r: 255, g: 120, b: 190, a: 255),  // magenta
+]

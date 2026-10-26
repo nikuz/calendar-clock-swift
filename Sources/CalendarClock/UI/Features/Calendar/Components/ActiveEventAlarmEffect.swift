@@ -17,7 +17,10 @@ struct CalendarActiveEventAlarmEffect {
         eventsOrder: CalendarUIUtils.EventsOrder,
         eventsNavigation: CalendarUIUtils.EventsNavigation? = nil,
     ) {
-        guard let activeEvent = eventsOrder.activeEvent,
+        // the rings would be cut out of the light of the lamp and turn the whole
+        // screen into a strobe: the flashing card is signal enough while it is on
+        guard !appState.lamp.isActive,
+            let activeEvent = eventsOrder.activeEvent,
             activeEvent.event.id != appState.calendar.confirmedApproachingEventId
         else {
             return
