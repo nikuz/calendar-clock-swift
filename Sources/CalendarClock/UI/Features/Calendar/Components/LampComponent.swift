@@ -269,7 +269,7 @@ struct CalendarLampComponent {
         // very same eight bit color or the seam between them would show
         let color = ColorBrightness(
             LAMP_COLORS[lamp.colorIndex % LAMP_COLORS.count],
-            Float(lamp.brightness) / 100.0 - 1.0,
+            lamp.intensity - 1.0,
         )
 
         // the clock and the events only live in the content strip, the rest of
